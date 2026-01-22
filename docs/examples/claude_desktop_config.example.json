@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "keimenon-lite-fs": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/ABSOLUTE/PATH/TO/keimenon-lite"
+      ]
+    }
+  }
+}
