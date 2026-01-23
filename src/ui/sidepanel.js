@@ -403,24 +403,26 @@ function updateUI() {
     const hiddenCountEl = document.getElementById('hiddenCount');
     
     // 1. Show/Hide Button Visibility & State
+    showHiddenBtn.style.display = 'flex'; // Always visible
+    hiddenCountEl.textContent = hiddenCount;
+
     if (hiddenCount > 0) {
-        showHiddenBtn.style.display = 'flex';
-        hiddenCountEl.textContent = hiddenCount;
-        
         if (appState.showHidden) {
             showHiddenBtn.classList.add('active');
             showHiddenBtn.title = `Hide Hidden Messages (${hiddenCount})`;
-            showHiddenIcon.innerHTML = SVG_HIDDEN; // "Crossed Eye" to imply action "Hide them"
+            showHiddenIcon.innerHTML = SVG_HIDDEN; 
         } else {
             showHiddenBtn.classList.remove('active');
             showHiddenBtn.title = `Show Hidden Messages (${hiddenCount})`;
-            showHiddenIcon.innerHTML = SVG_VISIBLE; // "Eye" to imply action "Show them"
+            showHiddenIcon.innerHTML = SVG_VISIBLE; 
         }
     } else {
-        // Fix: Always show visibility pill
-        showHiddenBtn.style.display = 'flex';
-        // Reset state only if needed logic
-        if(appState.showHidden && hiddenCount === 0) {
+        // Default state when 0
+        showHiddenBtn.classList.remove('active');
+        showHiddenBtn.title = `Show Hidden Messages (0)`;
+        showHiddenIcon.innerHTML = SVG_VISIBLE; 
+        
+        if(appState.showHidden) {
              appState.showHidden = false; 
         }
     }
@@ -439,7 +441,7 @@ function updateUI() {
     // Fix: Update Selected Pill Count
     const selectedCountValueEl = document.getElementById('selectedCountValue');
     if (selectedCountValueEl) {
-        selectedCountValueEl.textContent = selectedMsgs.length;
+        selectedCountValueEl.textContent = `${selectedMsgs.length} / ${visibleMessages.length}`;
     }
 
     updateCopyButtonLabel();

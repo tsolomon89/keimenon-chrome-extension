@@ -314,7 +314,7 @@ body {
 .stat-label {
     font-weight: 700;
     opacity: 0.6;
-    font-size: 9px;
+    font-size: 8px; /* Reduced from 9px */
     letter-spacing: 0.05em;
     text-transform: uppercase;
 }
@@ -322,7 +322,7 @@ body {
 .stat-pill span:last-child {
     font-family: monospace;
     font-weight: 600;
-    font-size: 12px;
+    font-size: 11px; /* Reduced from 12px */
 }
 
 
