@@ -25,7 +25,31 @@ export class ClaudeAdapter {
     const messages = [];
     const conversationId = this.getConversationId(window.location.href) || 'unknown';
     
-    const userMessageNodes = Array.from(document.querySelectorAll('.font-user-message'));
+    // Selectors to try (most specific to least specific)
+    const selectors = [
+        '.font-user-message', // Old/Specific
+        '[data-message-author="user"]', // Common attribute
+        '[data-testid="user-message"]',
+        '.human-message' // Another common variant
+    ];
+    
+    let userMessageNodes = [];
+    for (const sel of selectors) {
+        const nodes = document.querySelectorAll(sel);
+        if (nodes.length > 0) {
+            userMessageNodes = Array.from(nodes);
+            // console.log(`[Keimenon] Found ${nodes.length} messages using selector: "${sel}"`);
+            break; 
+        }
+    }
+    
+    // Fallback: If no specific user class, try finding all messages and filtering?
+    // Too risky without known structure.
+    
+    if (userMessageNodes.length === 0) {
+        // Try looking for generic message items if we can distinguish them
+        // console.log("[Keimenon] No user messages found with standard selectors.");
+    }
     
     for (const [index, node] of userMessageNodes.entries()) {
         const rawText = node.innerText || node.textContent; 
@@ -55,8 +79,16 @@ export class ClaudeAdapter {
      
      const target = document.querySelector('[class*="ChatMessageList"], [class*="scroller"]') || document.body;
 
+     let timeoutId;
+     const debouncedCallback = () => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+            callback();
+        }, 1000);
+     };
+
      this.observer = new MutationObserver((mutations) => {
-        callback();
+        debouncedCallback();
      });
 
      this.observer.observe(target, { childList: true, subtree: true });

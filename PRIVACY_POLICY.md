@@ -9,6 +9,7 @@ Keimenon Lite ("we", "our", or "us") respects your privacy. This Privacy Policy 
 
 - **Local Processing**: All parsing and message extraction happens locally within your browser's execution context.
 - **No External Servers**: The extension does not communicate with any external servers, APIs (other than the AI platforms you visit directly), or analytics providers controlled by us.
+- **Usage Analytics**: The codebase contains placeholders for basic usage metrics (clicks, scan counts), but this feature is **disabled by default** and not configured to send data to any active endpoint in the distributed version.
 - **No Cookies**: We do not set or read cookies for tracking purposes.
 
 ## 2. Permissions

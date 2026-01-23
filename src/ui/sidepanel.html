@@ -11,22 +11,47 @@
 
     <div class="header-group" id="headerGroup">
         <div class="scan-line"></div>
+        
+        <!-- Row 1: Title & Status -->
         <div class="top-bar">
-          <div class="title">Keimenon Lite</div>
-           <div style="display: flex; align-items: center; gap: 4px;">
-              <div id="statusBadge" class="status-badge" style="margin-right: 4px;">Ready</div>
-              
-              <button id="quickScanBtn" class="menu-btn" title="Scan Full Chat" style="display: none;">
-                  <!-- Radar/Scan Icon -->
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
-              </button>
-              
-              <button id="quickRefreshBtn" class="menu-btn" title="Refresh Page">
-                 <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
-              </button>
+          <div id="statusBadge" class="status-badge">Ready</div>
+          <div id="versionDisplay" class="version-label">v...</div>
+        </div>
 
-              <button id="menuBtn" class="menu-btn" title="More Options">⋮</button>
-           </div>
+        <!-- Row 2: Control Icons -->
+        <div class="controls-row">
+             <!-- Scan -->
+             <button id="quickScanBtn" class="icon-btn" title="Scan Full Chat" style="display: none;">
+                 <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                    <path d="M72.59-921.828v-5.582h5.582v2.345H74.934v3.238Zm19.51,0v-3.238H88.862v-2.345h5.582v5.582ZM72.59-903.41v-5.582h2.344v3.238h3.238v2.344Zm16.272,0v-2.344H92.1v-3.238h2.344v5.582Zm-10.51-5.762H88.683v-12.477H78.352Zm0,2.441a2.348,2.348,0,0,1-1.721-.72,2.348,2.348,0,0,1-.72-1.721v-12.477a2.348,2.348,0,0,1,.72-1.721,2.348,2.348,0,0,1,1.721-.72H88.683a2.348,2.348,0,0,1,1.721.72,2.348,2.348,0,0,1,.72,1.721v12.477a2.348,2.348,0,0,1-.72,1.721,2.348,2.348,0,0,1-1.721.72Zm1.909-10.786h6.514v-2.222H80.26Zm0,3.219h6.514v-2.222H80.26Zm0,3.218h6.514V-913.3H80.26Zm-1.909,1.909v0Z" transform="translate(-71.633 927.41)"/>
+                 </svg>
+             </button>
+
+             <!-- Refresh -->
+             <button id="quickRefreshBtn" class="icon-btn" title="Refresh Page">
+                 <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                    <path d="M160.91-788.13a9.648,9.648,0,0,1-7.089-2.911,9.648,9.648,0,0,1-2.911-7.089,9.648,9.648,0,0,1,2.911-7.089,9.648,9.648,0,0,1,7.089-2.911,9.918,9.918,0,0,1,4.136.891,9.423,9.423,0,0,1,3.368,2.557v-3.447h2.555v8.89h-8.9v-2.548h5.076a7.119,7.119,0,0,0-2.634-2.616,7.108,7.108,0,0,0-3.6-.953,6.969,6.969,0,0,0-5.119,2.108,6.969,6.969,0,0,0-2.108,5.119,6.97,6.97,0,0,0,2.108,5.119,6.969,6.969,0,0,0,5.119,2.107,7.045,7.045,0,0,0,4.167-1.319,7.071,7.071,0,0,0,2.633-3.47h2.9a9.887,9.887,0,0,1-3.554,5.447A9.687,9.687,0,0,1,160.91-788.13Z" transform="translate(-148.952 810.13)"/>
+                 </svg>
+             </button>
+
+             <div style="flex: 1;"></div>
+
+             <!-- Copy -->
+             <button id="copyAllBtn" class="icon-btn" title="Copy Selected">
+                 <svg viewBox="0 0 24 25" width="20" height="20" fill="currentColor">
+                     <path d="M113.991-874.541a2.552,2.552,0,0,1-1.873-.774,2.551,2.551,0,0,1-.774-1.873v-13.8a2.551,2.551,0,0,1,.774-1.873,2.551,2.551,0,0,1,1.873-.774h10.3a2.551,2.551,0,0,1,1.873.774,2.551,2.551,0,0,1,.774,1.873v13.8a2.551,2.551,0,0,1-.774,1.873,2.552,2.552,0,0,1-1.873.774Zm0-2.647h10.3v-13.8h-10.3Zm-4.974,7.621a2.551,2.551,0,0,1-1.873-.774,2.551,2.551,0,0,1-.774-1.873v-16.442h2.647v16.442h12.952v2.647Zm4.974-7.621v0Z" transform="translate(-104.364 893.63)"/>
+                 </svg>
+             </button>
+
+             <!-- Filters -->
+             <button id="filterBtn" class="icon-btn" title="Filters">
+                 <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                     <path d="M124.188-825.41v-7.407h2.617v2.4h9.581v2.617h-9.581v2.4Zm-9.688-2.4v-2.617h7.407v2.617Zm4.79-4.9v-2.4H114.5v-2.61h4.79v-2.4h2.617v7.4Zm4.9-2.4v-2.61h12.2v2.61Zm4.79-4.9v-7.407H131.6v2.4h4.79v2.617H131.6v2.4ZM114.5-842.4v-2.617h12.2v2.617Z" transform="translate(-113.621 848.215)"/>
+                 </svg>
+             </button>
+
+             <!-- Menu -->
+             <button id="menuBtn" class="icon-btn" title="More Options">⋮</button>
         </div>
 
         <div id="scanProgress" class="scan-progress" style="display: none;">
@@ -34,19 +59,44 @@
                 <div class="scan-dot"></div>
                 <span>Scanning... <span id="scanLog"></span></span>
             </div>
-            <button id="stopScanBtn" class="action-btn" style="font-size: 10px; height: 24px; padding: 0 10px;">Stop</button>
+            <button id="stopScanBtn" class="action-btn-small">Stop</button>
         </div>
 
-        <div class="controls">
+        <!-- Row 3: Search -->
+        <div class="search-row">
           <input type="text" id="searchInput" class="search-input" placeholder="Search prompts...">
-          <button id="filterBtn" class="action-btn">Filters</button>
-          <button id="copyAllBtn" class="action-btn primary">Copy All</button>
+        </div>
+
+        <!-- Row 4: Stats Grid -->
+        <div id="statsGrid" class="stats-grid">
+            <div class="stat-pill" title="Character Count">
+                <span class="stat-label">CHARS</span>
+                <span id="statCharsVal">0</span>
+            </div>
+            <div class="stat-pill" title="Token Count">
+                <span class="stat-label">TOKENS</span>
+                <span id="statTokensVal">0</span>
+            </div>
+            <!-- Selected Pill (now Select All Controller) -->
+            <div class="stat-pill clickable" id="selectAllBtn" title="Select/Deselect All">
+                <svg id="selectAllIcon" viewBox="0 -960 960 960" width="14" height="14" fill="currentColor" style="margin-right:4px">
+                    <!-- icon_check_full -->
+                    <path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm0-80h560v-560H200v560Zm224-168L696-620l-56-57-216 216-112-112-56 57 168 168Z"/>
+                </svg>
+                <span id="selectedCountValue">0</span>
+            </div>
+             <!-- Hidden Toggle Pill -->
+            <div class="stat-pill clickable" id="showHiddenBtn" title="Toggle Hidden Messages">
+                 <svg id="showHiddenIcon" viewBox="0 -960 960 960" width="14" height="14" fill="currentColor" style="margin-right:4px">
+                    <path d="M480-320q75 0 127.5-52.5T660-500q0-75-52.5-127.5T480-680q-75 0-127.5 52.5T300-500q0 75 52.5 127.5T480-320Zm.04-77.02q-42.89 0-72.95-30.02-30.07-30.03-30.07-72.92t30.02-72.95q30.03-30.07 72.92-30.07t72.95 30.02q30.07 30.03 30.07 72.92t-30.02 72.95q-30.03 30.07-72.92 30.07ZM480-192.59q-148.87 0-270.66-83.89Q87.54-360.37 32.59-500q54.95-139.63 176.75-223.52Q331.13-807.41 480-807.41t270.66 83.89Q872.46-639.63 927.41-500q-54.95 139.63-176.75 223.52Q628.87-192.59 480-192.59ZM480-500Zm.02 220q112.74 0 207-59.62T831.28-500q-50-100.76-144.28-160.38Q592.72-720 479.98-720q-112.74 0-207 59.62T128.72-500q50 100.76 144.28 160.38Q367.28-280 480.02-280Z"/>
+                 </svg>
+                 <span id="hiddenCount">0</span>
+            </div>
         </div>
     </div>
-
+    
     <!-- Actions Dropdown -->
     <div id="actionsMenu" class="dropdown-menu">
-        <!-- Moved Refresh/Scan to header -->
         <button class="menu-item" id="menuAuthAction">Sign Out</button>
         <div style="border-top: 1px solid var(--md-sys-color-outline-variant); margin: 4px 0; opacity: 0.2;"></div>
         <label class="menu-item" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">

@@ -62,17 +62,24 @@ export class ChatGPTAdapter {
     
     const target = document.querySelector('main') || document.body;
     
+    let timeoutId;
+    const debouncedCallback = () => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+            callback();
+        }, 1000); // 1s debounce
+    };
+
     this.observer = new MutationObserver((mutations) => {
         let shouldTrigger = false;
         for (const mutation of mutations) {
             if (mutation.addedNodes.length > 0) {
-                // Heuristic: only trigger if meaningful DOM change
                 shouldTrigger = true;
                 break;
             }
         }
         if (shouldTrigger) {
-            callback();
+            debouncedCallback();
         }
     });
 

@@ -86,6 +86,13 @@
         observe(callback) {
           if (this.observer) return;
           const target = document.querySelector("main") || document.body;
+          let timeoutId;
+          const debouncedCallback = () => {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+              callback();
+            }, 1e3);
+          };
           this.observer = new MutationObserver((mutations) => {
             let shouldTrigger = false;
             for (const mutation of mutations) {
@@ -95,7 +102,7 @@
               }
             }
             if (shouldTrigger) {
-              callback();
+              debouncedCallback();
             }
           });
           this.observer.observe(target, { childList: true, subtree: true });
@@ -180,7 +187,25 @@
         async runOnce() {
           const messages = [];
           const conversationId = this.getConversationId(window.location.href) || "unknown";
-          const userMessageNodes = Array.from(document.querySelectorAll(".font-user-message"));
+          const selectors = [
+            ".font-user-message",
+            // Old/Specific
+            '[data-message-author="user"]',
+            // Common attribute
+            '[data-testid="user-message"]',
+            ".human-message"
+            // Another common variant
+          ];
+          let userMessageNodes = [];
+          for (const sel of selectors) {
+            const nodes = document.querySelectorAll(sel);
+            if (nodes.length > 0) {
+              userMessageNodes = Array.from(nodes);
+              break;
+            }
+          }
+          if (userMessageNodes.length === 0) {
+          }
           for (const [index, node] of userMessageNodes.entries()) {
             const rawText = node.innerText || node.textContent;
             const text = normalizeText(rawText);
@@ -203,8 +228,15 @@
         observe(callback) {
           if (this.observer) return;
           const target = document.querySelector('[class*="ChatMessageList"], [class*="scroller"]') || document.body;
+          let timeoutId;
+          const debouncedCallback = () => {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+              callback();
+            }, 1e3);
+          };
           this.observer = new MutationObserver((mutations) => {
-            callback();
+            debouncedCallback();
           });
           this.observer.observe(target, { childList: true, subtree: true });
         }

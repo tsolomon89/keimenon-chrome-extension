@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Keimenon Lite (Preview)</title>
+  <link rel="icon" href="../../icons/icon16.png">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+      body { 
+          margin: 0; 
+          overflow: hidden; 
+          background: #333; 
+          font-family: sans-serif;
+      }
+      .split-layout {
+          display: flex;
+          height: 100vh;
+          width: 100vw;
+      }
+      .mock-browser {
+          flex: 1;
+          background: #222;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #666;
+          flex-direction: column;
+      }
+      .resize-handle {
+          width: 5px;
+          background: #444;
+          cursor: col-resize;
+          transition: background 0.2s;
+          position: relative;
+          z-index: 10;
+      }
+      .resize-handle:hover, .resize-handle.dragging {
+          background: #005ac1;
+      }
+      /* Override app container for preview */
+      .app-container {
+          width: 450px; /* Standard comfortable sidebar width */
+          min-width: 300px;
+          max-width: 90vw;
+          height: 100%;
+          border-left: 1px solid var(--glass-border); 
+          /* Reset previous */
+          margin: 0;
+          border-radius: 0; 
+          display: flex;
+          flex-direction: column;
+          
+          /* IMPORTANT: Since this is a div, not body, we must re-apply the base theme background/color 
+             that styles.css normally puts on body. */
+          background-color: var(--md-sys-color-surface);
+          color: var(--md-sys-color-on-surface);
+          
+          box-shadow: -5px 0 20px rgba(0,0,0,0.3);
+      }
+  </style>
+</head>
+<body>
+  <div class="split-layout">
+      <!-- Mock Browser Content -->
+      <div class="mock-browser">
+          <h2>Mock Browser Page</h2>
+          <p>Drag the handle on the right to resize the side panel.</p>
+          <div style="margin-top:20px; font-size: 12px; color: #555;">(Simulates Chrome Tab)</div>
+          
+          <button id="themeToggle" style="margin-top: 30px; padding: 10px 20px; cursor: pointer; background: #444; color: #fff; border: 1px solid #666; border-radius: 8px;">
+              Toggle Light/Dark Mode
+          </button>
+      </div>
+
+      <!-- Drag Handle -->
+      <div class="resize-handle" id="resizeHandle"></div>
+
+      <!-- Side Panel App -->
+      <div class ="app-container" id="appContainer">
+         <iframe id="sidepanelFrame" src="sidepanel.html" style="width: 100%; height: 100%; border: none;"></iframe>
+      </div> <!-- End App Container -->
+  </div> <!-- End Split Layout -->
+  
+  <script src="dev-mocks.js"></script>
+  <!-- sidepanel.js is now loaded by the iframe -->
+  
+  <!-- Resize Logic -->
+  <script>
+      const handle = document.getElementById('resizeHandle');
+      const panel = document.getElementById('appContainer');
+      const themeToggle = document.getElementById('themeToggle');
+      const iframe = document.getElementById('sidepanelFrame');
+      
+      let isDragging = false;
+
+      handle.addEventListener('mousedown', (e) => {
+          isDragging = true;
+          handle.classList.add('dragging');
+          e.preventDefault();
+      });
+
+      document.addEventListener('mousemove', (e) => {
+          if (!isDragging) return;
+          const newWidth = document.body.clientWidth - e.clientX;
+          if (newWidth > 300 && newWidth < 800) {
+              panel.style.width = newWidth + 'px';
+          }
+      });
+
+      document.addEventListener('mouseup', () => {
+          isDragging = false;
+          handle.classList.remove('dragging');
+      });
+      
+      themeToggle.addEventListener('click', () => {
+          // Toggle on main body (if needed for surrounding UI)
+          // AND toggle on iframe body (essential for sidepanel)
+          
+          const doc = iframe.contentDocument || iframe.contentWindow.document;
+          if (!doc) return;
+          
+          if (doc.body.classList.contains('force-dark')) {
+              doc.body.classList.remove('force-dark');
+              doc.body.classList.add('force-light');
+              console.log('[Preview] Switched to Force Light');
+          } else {
+              doc.body.classList.remove('force-light');
+              doc.body.classList.add('force-dark');
+              console.log('[Preview] Switched to Force Dark');
+          }
+      });
+      
+      // Initial Sync (optional, default is dark/light based on system)
+      iframe.onload = () => {
+          // If we wanted to enforce a default state we could do it here
+          console.log("Sidepanel loaded in preview.");
+      };
+  </script>
+</body>
+</html>

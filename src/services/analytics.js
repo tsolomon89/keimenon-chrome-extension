@@ -6,7 +6,7 @@ const API_SECRET = 'XXXXXXXXXXXXXXXXXXXX'; // Placeholder
 
 export class AnalyticsService {
     constructor() {
-        this.enabled = true; // Default on
+        this.enabled = false; // Default off for privacy
         this.clientId = null;
         this.sessionId = null;
     }

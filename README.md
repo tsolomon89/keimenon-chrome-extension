@@ -60,6 +60,13 @@ Keimenon Lite is a Chrome extension designed to **extract your own prompt histor
 - `npm test`: Runs Vitest suite for adapters.
 - `scripts/pack.ps1` (Windows): PowerShell script to build and zip for distribution.
 
+### Local Preview
+To iterate on UI design (CSS/JS) without reloading the extension:
+1. Open `src/ui/dev-preview.html` in your browser.
+2. It uses the **exact same** `styles.css` and `sidepanel.js` as production.
+3. A `dev-mocks.js` script simulates Chrome APIs with dummy data.
+**Note**: If you change `sidepanel.html` structure, update `dev-preview.html` manually.
+
 ## 🔒 Privacy Policy
 See [PRIVACY_POLICY.md](PRIVACY_POLICY.md). In short: **Your data stays on your device.**
 

@@ -1,5 +1,7 @@
 
 
+const ENABLE_AUTH_FEATURE = false; // Feature Flag: Set to true when Auth is ready for release
+
 export class AuthService {
     constructor() {
         this.token = null;
@@ -9,6 +11,8 @@ export class AuthService {
     }
 
     checkAuthConfiguration() {
+        if (!ENABLE_AUTH_FEATURE) return false;
+
         const manifest = chrome.runtime.getManifest();
         const clientId = manifest.oauth2?.client_id;
         // If missing or placeholder, disable auth features
