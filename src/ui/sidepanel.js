@@ -402,6 +402,11 @@ function updateUI() {
     const hiddenCount = appState.hiddenIds.size;
     const hiddenCountEl = document.getElementById('hiddenCount');
     
+    // Fix: Ensure viewBox matches the paths (24x24)
+    if (showHiddenIcon && showHiddenIcon.getAttribute('viewBox') !== '0 0 24 24') {
+        showHiddenIcon.setAttribute('viewBox', '0 0 24 24');
+    }
+    
     // 1. Show/Hide Button Visibility & State
     showHiddenBtn.style.display = 'flex'; // Always visible
     hiddenCountEl.textContent = hiddenCount;
