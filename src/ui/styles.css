@@ -142,6 +142,8 @@ body {
 }
 
 /* Animations */
+.hidden { display: none !important; }
+
 @keyframes slideIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
@@ -441,19 +443,22 @@ mark {
 }
 
 .copy-btn-small {
-  background: var(--md-sys-color-surface); 
-  border: 1px solid var(--md-sys-color-outline-variant);
+  background: transparent; 
+  border: none;
   cursor: pointer;
-  color: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-surface-variant);
   font-size: 11px;
-  padding: 4px 10px;
-  border-radius: 100px;
+  padding: 6px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-weight: 500;
   transition: all 0.2s;
 }
 .copy-btn-small:hover {
-    background: var(--md-sys-color-primary-container);
-    border-color: transparent;
+    background: var(--md-sys-color-surface-container-high);
+    color: var(--md-sys-color-on-surface);
 }
 
 /* Scan Progress */

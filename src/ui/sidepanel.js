@@ -137,33 +137,50 @@ document.addEventListener('click', () => {
 
 // --- Core Event Listeners ---
 
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === 'MESSAGES_UPDATED') {
-        const { messages } = request.payload;
-        const { adapter, capabilities } = request.meta;
-        
-        appState.messages = messages;
-        // UX Improvement: Default select all messages
-        messages.forEach(m => appState.selectedIds.add(m.id));
-        
-        currentAdapterName = adapter;
-        updateScanButton(capabilities?.scan);
-        updateUI();
-        
-    } else if (request.action === 'SCAN_COMPLETE') {
-        setLoading(false);
-        scanProgressEl.classList.remove('active');
-        scanProgressEl.style.display = 'none';
-        analytics.trackEvent('scan_complete', { count: appState.messages.length });
-        
-    } else if (request.action === 'EXTENSION_READY') {
-        setLoading(false);
-        const { adapter, capabilities } = request.meta;
-        currentAdapterName = adapter;
-        updateScanButton(capabilities?.scan);
-        requestMessages();
+// --- Chrome API Initialization ---
+
+function initExtension() {
+    if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.tabs) {
+        // Retry for dev mode injection (race condition with dev-preview)
+        console.log('[SidePanel] Waiting for chrome injection...');
+        setTimeout(initExtension, 50);
+        return;
     }
-});
+
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+        if (request.action === 'MESSAGES_UPDATED') {
+            const { messages } = request.payload;
+            const { adapter, capabilities } = request.meta;
+            
+            appState.messages = messages;
+            // UX Improvement: Default select all messages
+            messages.forEach(m => appState.selectedIds.add(m.id));
+            
+            currentAdapterName = adapter;
+            updateScanButton(capabilities?.scan);
+            updateUI();
+            
+        } else if (request.action === 'SCAN_COMPLETE') {
+            setLoading(false);
+            scanProgressEl.classList.remove('active');
+            scanProgressEl.style.display = 'none';
+            analytics.trackEvent('scan_complete', { count: appState.messages.length });
+            
+        } else if (request.action === 'EXTENSION_READY') {
+            setLoading(false);
+            const { adapter, capabilities } = request.meta;
+            currentAdapterName = adapter;
+            updateScanButton(capabilities?.scan);
+            requestMessages();
+        }
+    });
+
+    // Initial Connection
+    ensureConnection();
+}
+
+// Start Initialization
+initExtension();
 
 
 function requestMessages() {
@@ -209,7 +226,7 @@ function ensureConnection() {
 }
 
 // Initial Load
-ensureConnection();
+// ensureConnection(); // Moved to initExtension
 
 // Header Loading State
 const headerGroup = document.getElementById('headerGroup');
@@ -259,13 +276,13 @@ quickRefreshBtn?.addEventListener('click', () => {
 
 // Toggle Hide/Show
 // Toggle Hide/Show Button (Task PURPLE)
-// SVG Paths (Material Symbols)
-const SVG_VISIBLE = '<path d="M480-320q75 0 127.5-52.5T660-500q0-75-52.5-127.5T480-680q-75 0-127.5 52.5T300-500q0 75 52.5 127.5T480-320Zm.04-77.02q-42.89 0-72.95-30.02-30.07-30.03-30.07-72.92t30.02-72.95q30.03-30.07 72.92-30.07t72.95 30.02q30.07 30.03 30.07 72.92t-30.02 72.95q-30.03 30.07-72.92 30.07ZM480-192.59q-148.87 0-270.66-83.89Q87.54-360.37 32.59-500q54.95-139.63 176.75-223.52Q331.13-807.41 480-807.41t270.66 83.89Q872.46-639.63 927.41-500q-54.95 139.63-176.75 223.52Q628.87-192.59 480-192.59ZM480-500Zm.02 220q112.74 0 207-59.62T831.28-500q-50-100.76-144.28-160.38Q592.72-720 479.98-720q-112.74 0-207 59.62T128.72-500q50 100.76 144.28 160.38Q367.28-280 480.02-280Z"/>';
-const SVG_HIDDEN = '<path d="m789.13-53.13-163.7-161.94q-34.52 11.24-70.5 16.86-35.97 5.62-74.93 5.62-152.67 0-272.71-84.93Q87.26-362.46 32.59-500q20.76-52.52 53-98.86 32.24-46.34 72.76-83.29L49.3-792.72l58.63-58.63 739.59 739.83-58.39 58.39ZM480-320q9.8 0 18.35-.88 8.54-.88 18.35-3.64L304.04-536.7q-2.52 9.81-3.28 18.47-.76 8.66-.76 18.23 0 75 52.5 127.5T480-320Zm299.65 20.63L646.2-432.07q6.52-15.8 10.16-32.94Q660-482.15 660-500q0-75-52.5-127.5T480-680q-18.33 0-34.99 3.64-16.66 3.64-32.94 10.93L304.09-773.41q41-17 84.95-25.5 43.96-8.5 90.96-8.5 152.43 0 272.47 84.69Q872.5-638.02 927.41-500q-23 59.48-60.98 110.93-37.97 51.46-86.78 89.7ZM577.67-500.59l-98-98q22.98-4.04 42.06 3.55 19.07 7.58 32.97 22.47 13.89 14.9 20.07 34.09 6.19 19.2 2.9 37.89Z"/>';
+// SVG Paths (Material Symbols 24px)
+const SVG_VISIBLE = '<path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>';
+const SVG_HIDDEN = '<path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/>';
 
-const SVG_CHECKBOX_CHECKED = '<path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm0-80h560v-560H200v560Zm224-168L696-620l-56-57-216 216-112-112-56 57 168 168Z"/>';
-const SVG_CHECKBOX_EMPTY = '<path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm0-80h560v-560H200v560Z"/>';
-const SVG_CHECKBOX_INDETERMINATE = '<path d="M114.342-828.13a2.383,2.383,0,0,1-1.749-.723,2.383,2.383,0,0,1-.723-1.749v-15.056a2.382,2.382,0,0,1,.723-1.749,2.383,2.383,0,0,1,1.749-.723H129.4a2.383,2.383,0,0,1,1.749.723,2.382,2.382,0,0,1,.723,1.749V-830.6a2.383,2.383,0,0,1-.723,1.749,2.383,2.383,0,0,1-1.749.723Zm0-2.472H129.4v-15.056H114.342Z" transform="translate(-109.87 850.13)" fill="currentColor"/> <path d="M116.437-836.946H127.3v-2.368H116.437Zm-2.1,8.816a2.383,2.383,0,0,1-1.749-.723,2.383,2.383,0,0,1-.723-1.749v-15.056a2.383,2.383,0,0,1,.723-1.749,2.383,2.383,0,0,1,1.749-.723H129.4a2.383,2.383,0,0,1,1.749.723,2.383,2.383,0,0,1,.723,1.749V-830.6a2.383,2.383,0,0,1-.723,1.749,2.383,2.383,0,0,1-1.749.723Z" transform="translate(-109.87 850.13)" fill="currentColor"/>';
+const SVG_CHECKBOX_CHECKED = '<path d="M19 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2V5c0-1.1-.89-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>';
+const SVG_CHECKBOX_EMPTY = '<path d="M19 5v14H5V5h14m0-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/>';
+const SVG_CHECKBOX_INDETERMINATE = '<path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10H7v-2h10v2z"/>'; // Standard Dash
 
 // Icon Copy (Small)
 const SVG_COPY_SMALL = '<g transform="translate(0.121 0.195)"><path d="M113.991-874.541a2.552,2.552,0,0,1-1.873-.774,2.551,2.551,0,0,1-.774-1.873v-13.8a2.551,2.551,0,0,1,.774-1.873,2.551,2.551,0,0,1,1.873-.774h10.3a2.551,2.551,0,0,1,1.873.774,2.551,2.551,0,0,1,.774,1.873v13.8a2.551,2.551,0,0,1-.774,1.873,2.552,2.552,0,0,1-1.873.774Zm0-2.647h10.3v-13.8h-10.3Zm-4.974,7.621a2.551,2.551,0,0,1-1.873-.774,2.551,2.551,0,0,1-.774-1.873v-16.442h2.647v16.442h12.952v2.647Zm4.974-7.621v0Z" transform="translate(-104.364 893.63)" fill="currentColor"/></g>';
@@ -303,8 +320,18 @@ copyAllBtn.addEventListener('click', () => {
     
     navigator.clipboard.writeText(textToCopy);
     
-    copyAllBtn.textContent = 'Copied!';
-    setTimeout(() => updateCopyButtonLabel(), 1500);
+    navigator.clipboard.writeText(textToCopy);
+    analytics.trackEvent('copy_selected', { count: selectedMsgs.length });
+    
+    // Visual Feedback (Icon Checkmark)
+    const originalIconContent = copyAllBtn.innerHTML;
+    copyAllBtn.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">${SVG_CHECKBOX_CHECKED}</svg>`;
+    copyAllBtn.style.color = 'var(--md-sys-color-primary)'; // Green/Primary color for success
+    
+    setTimeout(() => {
+        copyAllBtn.innerHTML = originalIconContent;
+        copyAllBtn.style.color = '';
+    }, 1500);
 });
 
 function updateCopyButtonLabel() {
@@ -312,13 +339,15 @@ function updateCopyButtonLabel() {
     const selectedCount = visibleMessages.filter(m => appState.selectedIds.has(m.id)).length;
     
     if (selectedCount > 0) {
-        copyAllBtn.textContent = `Copy`;
+        // copyAllBtn.textContent = `Copy`; // REMOVED: Destroys icon
         copyAllBtn.disabled = false;
         copyAllBtn.style.opacity = '1';
+        copyAllBtn.title = `Copy ${selectedCount} Selected`;
     } else {
-        copyAllBtn.textContent = `Copy`;
-        copyAllBtn.disabled = true; // UX: Disable if nothing to copy
+        // copyAllBtn.textContent = `Copy`; // REMOVED: Destroys icon
+        copyAllBtn.disabled = true;
         copyAllBtn.style.opacity = '0.5';
+        copyAllBtn.title = 'Copy Selected (None)';
     }
 }
 
@@ -420,6 +449,11 @@ function updateUI() {
         const totalVisible = visibleMessages.length;
         const selectedCount = selectedMsgs.length;
         
+        // Ensure viewBox is 24x24 for the 24x24 paths
+        if (selectAllIcon.getAttribute('viewBox') !== '0 0 24 24') {
+             selectAllIcon.setAttribute('viewBox', '0 0 24 24');
+        }
+
         if (totalVisible > 0 && selectedCount === totalVisible) {
              selectAllIcon.innerHTML = SVG_CHECKBOX_CHECKED;
              selectAllBtn.title = 'Deselect All';
@@ -477,11 +511,10 @@ function updateUI() {
                 </div>
                 <div class="card-header-actions">
                      <button class="hide-btn" data-id="${msg.id}" title="${toggleTitle}">
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">${toggleIcon === SVG_HIDDEN ? '<path d="m20.665 18.796-1.512-1.512q-.312.115-.65.202-.338.086-.744.086-1.42 0-2.524-.806Q14.131 15.96 13.626 14.654q.192-.48.494-.902.302-.423.682-.759l-5.717-5.716-.547-.547L1.644.836l2.16-2.16 23.328 23.328-2.155 2.155ZM12 11.231Zm6.566 2.506-1.325-1.325q.067-.144.096-.298.029-.153.029-.313 0-.691-.49-1.181t-1.18-.49q-.173 0-.327.034-.153.033-.307.101L9.673 4.87q.394-.153.806-.23.413-.077.85-.077 1.42 0 2.524.797Q14.957 6.157 15.461 7.462q-.211.537-.566 1.017-.355.48-.76 837ZM10.592 5.79l-2.025-2.025q.557-.365 1.157-.591Q10.323 2.947 11 2.947q2.717 0 5.091 1.488Q18.466 5.923 19.646 8.538q-.336 1.104-1.027 2.05-.71.945-1.853 1.637l-1.008-1.008q.835-.49 1.34-1.139.503-.648.783-1.426-.506-1.307-1.574-2.16Q15.24 5.638 13.933 5.638q-.806 0-1.632.192-.825.192-1.709.601v-.64Z" transform="translate(2 3)" />' : '<path d="M11 11.231a1.692 1.692 0 0 1 1.23-.51 1.693 1.693 0 0 1 1.231.51 1.693 1.693 0 0 1 .51 1.23 1.692 1.692 0 0 1-.51 1.231 1.692 1.692 0 0 1-1.23.51 1.693 1.693 0 0 1-1.231-.51 1.693 1.693 0 0 1-.51-1.23 1.692 1.692 0 0 1 .51-1.231Zm6.566 2.506-1.325-1.325q.067-.144.096-.298.029-.153.029-.313 0-.691-.49-1.181t-1.18-.49q-.173 0-.327.034-.153.033-.307.101L9.673 4.87q.394-.153.806-.23.413-.077.85-.077 1.42 0 2.524.797Q14.957 6.157 15.461 7.462q-.211.537-.566 1.017-.355.48-.76 837ZM10.592 5.79l-2.025-2.025q.557-.365 1.157-.591Q10.323 2.947 11 2.947q2.717 0 5.091 1.488Q18.466 5.923 19.646 8.538q-.336 1.104-1.027 2.05-.71.945-1.853 1.637l-1.008-1.008q.835-.49 1.34-1.139.503-.648.783-1.426-.506-1.307-1.574-2.16Q15.24 5.638 13.933 5.638q-.806 0-1.632.192-.825.192-1.709.601v-.64Z" transform="translate(2 3)" />'}</svg>
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">${toggleIcon}</svg>
                      </button>
-                     <button class="copy-btn-small" data-id="${msg.id}">
-                        <svg viewBox="0 0 24 24.258" width="16" height="16" fill="currentColor">${SVG_COPY_SMALL}</svg>
-                        Copy
+                     <button class="copy-btn-small icon-only" data-id="${msg.id}" title="Copy">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">${SVG_COPY_SMALL}</svg>
                      </button>
                 </div>
             </div>
@@ -515,8 +548,16 @@ function updateUI() {
         btn?.addEventListener('click', () => {
             navigator.clipboard.writeText(msg.text);
             analytics.trackEvent('copy_single', { charCount: msg.text.length });
-            btn.textContent = 'Copied!';
-            setTimeout(() => btn.textContent = 'Copy', 1000);
+            
+            // Visual Feedback (Checkmark)
+            const originalIcon = btn.innerHTML;
+            btn.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">${SVG_CHECKBOX_CHECKED}</svg>`;
+            btn.style.color = 'var(--md-sys-color-primary)';
+            
+            setTimeout(() => {
+                btn.innerHTML = originalIcon;
+                btn.style.color = '';
+            }, 1000);
         });
         
         // 3. Select Checkbox

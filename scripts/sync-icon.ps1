@@ -1,5 +1,5 @@
 $faviconDir = "..\assets\favicon"
-$iconsDir = "..\icons"
+$iconsDir = "..\assets\icons"
 
 # Ensure dirs exist
 if (!(Test-Path $faviconDir)) { New-Item -ItemType Directory -Path $faviconDir | Out-Null }
