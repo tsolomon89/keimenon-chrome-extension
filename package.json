@@ -1,6 +1,6 @@
 ﻿{
     "name":  "keimenon-lite",
-    "version":  "1.2.10",
+    "version":  "1.2.11",
     "description":  "Keimenon Lite is a Chrome extension that extracts **user-authored messages only** from supported AI chat pages (ChatGPT + Claude) by reading the current page DOM. It renders these messages in a Material Design 3 (M3) side panel.",
     "main":  "index.js",
     "directories":  {
