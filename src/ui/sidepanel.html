@@ -109,6 +109,7 @@
     <div id="filterOverlay" class="sheet-overlay"></div>
     <div id="filterSheet" class="bottom-sheet">
         <div class="sheet-header">
+            <button id="clearFilterBtn" class="action-btn-text" style="visibility: hidden;">Clear</button>
             <span class="sheet-title">Filters</span>
             <button id="closeFilterBtn" class="action-btn">Done</button>
         </div>
@@ -144,6 +145,15 @@
         </button>
     </div>
   </div>
+  <!-- Mock Injection for Dev Preview -->
+  <script>
+    if (new URLSearchParams(window.location.search).has('mock')) {
+        const script = document.createElement('script');
+        script.src = 'dev-mocks.js';
+        document.body.appendChild(script);
+        console.log('[SidePanel] Injecting dev-mocks.js');
+    }
+  </script>
   <script type="module" src="sidepanel.js"></script>
 </body>
 </html>

@@ -648,3 +648,36 @@ mark {
 .card.hidden-message .card-body {
     filter: grayscale(100%);
 }
+
+/* Active Filter Indicator */
+#filterBtn.active {
+    position: relative;
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+}
+#filterBtn.active::after {
+    content: '';
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 8px;
+    height: 8px;
+    background-color: var(--md-sys-color-primary);
+    border-radius: 50%;
+    border: 1px solid var(--md-sys-color-surface);
+}
+
+/* Text Action Button (Clear) */
+.action-btn-text {
+    background: none;
+    border: none;
+    color: var(--md-sys-color-primary);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 8px;
+}
+.action-btn-text:hover {
+    background: var(--md-sys-color-surface-container-high);
+}

@@ -46,6 +46,7 @@ const selectAllIcon = document.getElementById('selectAllIcon');
 const filterSheet = document.getElementById('filterSheet');
 const filterOverlay = document.getElementById('filterOverlay');
 const closeFilterBtn = document.getElementById('closeFilterBtn');
+const clearFilterBtn = document.getElementById('clearFilterBtn');
 const minLenInput = document.getElementById('minLenInput');
 const sortSelect = document.getElementById('sortSelect');
 
@@ -124,6 +125,20 @@ function closeSheet() {
 filterBtn.addEventListener('click', openSheet);
 closeFilterBtn.addEventListener('click', closeSheet);
 filterOverlay.addEventListener('click', closeSheet);
+
+// Clear Filter
+clearFilterBtn.addEventListener('click', () => {
+    appState.filter.search = '';
+    appState.filter.minLen = 0;
+    appState.filter.sort = 'original';
+    
+    // Reset Inputs
+    searchInput.value = '';
+    minLenInput.value = 0;
+    sortSelect.value = 'original';
+    
+    updateUI();
+});
 
 // Menu Logic
 menuBtn.addEventListener('click', (e) => {
@@ -398,7 +413,16 @@ function updateUI() {
     const visibleMessages = getFilteredMessages();
     const searchTerm = appState.filter.search.trim();
 
-    // Features: Stats & Visibility Toggle
+    // Filter Active State & Clear Button Visibility
+    const hasActiveFilters = appState.filter.minLen > 0 || appState.filter.search.length > 0 || appState.filter.sort !== 'original';
+    
+    if (hasActiveFilters) {
+        filterBtn.classList.add('active');
+        clearFilterBtn.style.visibility = 'visible';
+    } else {
+        filterBtn.classList.remove('active');
+        clearFilterBtn.style.visibility = 'hidden';
+    }
     const hiddenCount = appState.hiddenIds.size;
     const hiddenCountEl = document.getElementById('hiddenCount');
     

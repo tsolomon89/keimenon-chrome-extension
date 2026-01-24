@@ -61,6 +61,7 @@
 </head>
 <body>
   <div class="split-layout">
+      <div id="debug-status" style="position:fixed; top:0; left:0; background:rgba(255,0,0,0.8); color:white; padding:5px; z-index:9999; pointer-events:none;">Debug: INIT</div>
       <!-- Mock Browser Content -->
       <div class="mock-browser">
           <h2>Mock Browser Page</h2>
@@ -114,7 +115,7 @@
           });
           
           // Force src assignment now
-          iframe.src = "sidepanel.html";
+          iframe.src = "sidepanel.html?mock=true";
           
           // Critical: We need to inject window.chrome into the iframe's window environment
           // The most reliable way for local dev handling here is to poll or hook.
@@ -186,8 +187,8 @@
           } catch(e) { console.error(e); }
       };
       
-      // Trigger load
-      iframe.src = "sidepanel.html";
+      // Trigger load with mock param
+      iframe.src = "sidepanel.html?mock=true";
       
       // AGGRESSIVE INJECTION: Race to inject 'chrome' before sidepanel.js (module) initializes.
       // Since sidepanel.js is a module, it runs deferred, but file:// IO is fast.

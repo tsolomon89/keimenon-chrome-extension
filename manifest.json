@@ -1,11 +1,9 @@
 ﻿{
     "manifest_version":  3,
     "name":  "Keimenon Lite",
-    "version":  "1.2.12",
+    "version":  "1.2.16",
     "description":  "Extract user-authored messages from AI chat pages locally.",
     "permissions":  [
-                        "activeTab",
-                        "scripting",
                         "sidePanel",
                         "storage"
                     ],
@@ -39,7 +37,9 @@
     "web_accessible_resources":  [
                                      {
                                          "resources":  [
-                                                           "src/**/*.js"
+                                                           "src/ui/sidepanel.html",
+                                                           "src/ui/sidepanel.js",
+                                                           "src/style.css"
                                                        ],
                                          "matches":  [
                                                          "*://chatgpt.com/*",
