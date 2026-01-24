@@ -36,14 +36,11 @@ export class GrokAdapter {
     // The text content is inside .message-bubble -> .response-content-markdown -> p
     
     // 1. Select all message bubbles
+    // 1. Select all message bubbles
     const bubbles = Array.from(document.querySelectorAll('.message-bubble'));
     
-    // 2. Filter for User messages
-    // The user's bubble in the snippet has `bg-surface-l1`. 
-    // We should assume this is the user identifier key.
-    const userBubbles = bubbles.filter(node => node.classList.contains('bg-surface-l1'));
-
-    for (const [index, node] of userBubbles.entries()) {
+    // 2. Capture ALL bubbles, distinguish by class
+    for (const [index, node] of bubbles.entries()) {
         // Text is likely deep inside. The snippet shows:
         // .response-content-markdown -> p
         
@@ -60,6 +57,11 @@ export class GrokAdapter {
 
         if (!text) continue;
 
+        // Determine Author
+        // User has `bg-surface-l1` (or similar user color class)
+        // Model is assumed to be the other state.
+        const author = node.classList.contains('bg-surface-l1') ? 'user' : 'assistant';
+
         const hash = await generateMessageHash(text);
         const id = generateOccurrenceKey(hash, index);
         
@@ -71,7 +73,7 @@ export class GrokAdapter {
             text,
             charCount: text.length,
             capturedAt: Date.now(),
-            author: 'user'
+            author
         });
     }
 
@@ -106,6 +108,42 @@ export class GrokAdapter {
     });
 
     this.observer.observe(target, { childList: true, subtree: true });
+  }
+
+  async scanFullChat(options) {
+      if (this.isScanning) return;
+      this.isScanning = true;
+
+      // Grok scroll container assumption
+      const scrollContainer = document.querySelector('main') || document.documentElement;
+      
+      let noChangeCount = 0;
+      let lastScrollHeight = scrollContainer.scrollHeight;
+
+      try {
+          while (!options.shouldStop() && noChangeCount < 5) {
+              scrollContainer.scrollTop -= 500; 
+              
+              await new Promise(r => setTimeout(r, 800));
+
+              const newScrollHeight = scrollContainer.scrollHeight;
+              if (Math.abs(newScrollHeight - lastScrollHeight) < 10) {
+                  noChangeCount++;
+              } else {
+                  noChangeCount = 0;
+                  lastScrollHeight = newScrollHeight;
+              }
+              
+              if (scrollContainer.scrollTop <= 50) {
+                  await new Promise(r => setTimeout(r, 1000));
+                  if (scrollContainer.scrollTop <= 50 && scrollContainer.scrollHeight === lastScrollHeight) {
+                      break; 
+                  }
+              }
+          }
+      } finally {
+          this.isScanning = false;
+      }
   }
 
   disconnect() {

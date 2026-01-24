@@ -26,35 +26,34 @@ export class ClaudeAdapter {
     const conversationId = this.getConversationId(window.location.href) || 'unknown';
     
     // Selectors to try (most specific to least specific)
+    // We want ALL messages now.
     const selectors = [
-        '.font-user-message', // Old/Specific
-        '[data-message-author="user"]', // Common attribute
-        '[data-testid="user-message"]',
-        '.human-message' // Another common variant
+        '[data-message-author]', // Catches both "user" and "assistant"
+        '.font-user-message, .font-claude-message', // Fallback class based
+        '[data-testid="user-message"], [data-testid="claude-message"]'
     ];
     
-    let userMessageNodes = [];
+    let messageNodes = [];
     for (const sel of selectors) {
         const nodes = document.querySelectorAll(sel);
         if (nodes.length > 0) {
-            userMessageNodes = Array.from(nodes);
-            // console.log(`[Keimenon] Found ${nodes.length} messages using selector: "${sel}"`);
+            messageNodes = Array.from(nodes);
             break; 
         }
     }
     
-    // Fallback: If no specific user class, try finding all messages and filtering?
-    // Too risky without known structure.
-    
-    if (userMessageNodes.length === 0) {
-        // Try looking for generic message items if we can distinguish them
-        // console.log("[Keimenon] No user messages found with standard selectors.");
-    }
-    
-    for (const [index, node] of userMessageNodes.entries()) {
+    for (const [index, node] of messageNodes.entries()) {
         const rawText = node.innerText || node.textContent; 
         const text = normalizeText(rawText);
         if (!text) continue;
+
+        // Determine Author
+        let author = 'assistant';
+        if (node.getAttribute('data-message-author') === 'user' || 
+            node.classList.contains('font-user-message') ||
+            node.matches('[data-testid="user-message"]')) {
+            author = 'user';
+        }
 
         const hash = await generateMessageHash(text);
         const id = generateOccurrenceKey(hash, index);
@@ -67,7 +66,7 @@ export class ClaudeAdapter {
             text,
             charCount: text.length,
             capturedAt: Date.now(),
-            author: 'user'
+            author
         });
     }
 

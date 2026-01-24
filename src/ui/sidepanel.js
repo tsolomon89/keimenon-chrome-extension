@@ -21,7 +21,8 @@ const appState = {
     filter: {
         search: '',
         minLen: 0,
-        sort: 'original'
+        sort: 'original',
+        author: 'both' // 'user', 'assistant', 'both'
     }
 };
 
@@ -301,8 +302,9 @@ quickRefreshBtn?.addEventListener('click', () => {
 // Toggle Hide/Show
 // Toggle Hide/Show Button (Task PURPLE)
 // SVG Paths (Material Symbols 24px)
-const SVG_VISIBLE = '<path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>';
-const SVG_HIDDEN = '<path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/>';
+// SVG Paths (User Provided)
+const SVG_VISIBLE = '<g transform="translate(0.295 0.195)"><path d="M43.679-795.33a4.3,4.3,0,0,0,3.16-1.3,4.3,4.3,0,0,0,1.3-3.16,4.3,4.3,0,0,0-1.3-3.16,4.3,4.3,0,0,0-3.16-1.3,4.3,4.3,0,0,0-3.16,1.3,4.3,4.3,0,0,0-1.3,3.16,4.3,4.3,0,0,0,1.3,3.16A4.3,4.3,0,0,0,43.679-795.33Zm0-1.909a2.463,2.463,0,0,1-1.808-.744,2.459,2.459,0,0,1-.745-1.807,2.463,2.463,0,0,1,.744-1.808,2.459,2.459,0,0,1,1.807-.745,2.463,2.463,0,0,1,1.808.744,2.459,2.459,0,0,1,.745,1.807,2.464,2.464,0,0,1-.744,1.808A2.459,2.459,0,0,1,43.68-797.238Zm0,5.067a11.562,11.562,0,0,1-6.708-2.079,11.835,11.835,0,0,1-4.381-5.54,11.834,11.834,0,0,1,4.381-5.54,11.561,11.561,0,0,1,6.708-2.079,11.561,11.561,0,0,1,6.708,2.079,11.834,11.834,0,0,1,4.381,5.54,11.835,11.835,0,0,1-4.381,5.54A11.562,11.562,0,0,1,43.679-792.172Z" transform="translate(-32.59 811.41)" fill="currentColor"/></g>';
+const SVG_HIDDEN = '<g transform="translate(0.295 0.195)"><path d="M52.472-830.373l-4.3-4.256a11.92,11.92,0,0,1-1.853.443,12.739,12.739,0,0,1-1.969.148,12.1,12.1,0,0,1-7.167-2.232,12.809,12.809,0,0,1-4.591-5.847,12.727,12.727,0,0,1,1.393-2.6,12.987,12.987,0,0,1,1.912-2.189l-2.866-2.906,1.541-1.541,19.436,19.443Zm-8.124-7.013a4.732,4.732,0,0,0,.482-.023,2.884,2.884,0,0,0,.482-.1l-5.589-5.576a3.021,3.021,0,0,0-.086.485q-.02.228-.02.479A4.561,4.561,0,0,0,41-838.766,4.562,4.562,0,0,0,44.348-837.386Zm7.875.542-3.507-3.487a4.974,4.974,0,0,0,.267-.866,4.415,4.415,0,0,0,.1-.92,4.562,4.562,0,0,0-1.38-3.351,4.562,4.562,0,0,0-3.351-1.38,4.293,4.293,0,0,0-.92.1,4.426,4.426,0,0,0-.866.287L39.725-849.3a11.528,11.528,0,0,1,2.232-.67,12.57,12.57,0,0,1,2.39-.223,12.118,12.118,0,0,1,7.16,2.226,12.8,12.8,0,0,1,4.6,5.853,12.444,12.444,0,0,1-1.6,2.915A12.107,12.107,0,0,1,52.223-836.844Zm-5.308-5.288-2.575-2.575a2,2,0,0,1,1.105.093,2.365,2.365,0,0,1,.866.591,2.36,2.36,0,0,1,.527.9A2.046,2.046,0,0,1,46.915-842.132Z" transform="translate(-32.59 852.35)" fill="currentColor"/></g>';
 
 const SVG_CHECKBOX_CHECKED = '<path d="M19 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2V5c0-1.1-.89-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>';
 const SVG_CHECKBOX_EMPTY = '<path d="M19 5v14H5V5h14m0-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/>';
@@ -392,6 +394,12 @@ function getFilteredMessages() {
     // 1. Basic Filters
     let msgs = filterMessages(activeSet, appState.filter.search, appState.filter.minLen);
     
+    // 3. Author Filter
+    const authorMode = appState.filter.author;
+    if (authorMode !== 'both') {
+        msgs = msgs.filter(m => m.author === authorMode);
+    }
+
     // 2. Sort
     const sortMode = appState.filter.sort;
     if (sortMode === 'lengthDesc') {
@@ -402,6 +410,44 @@ function getFilteredMessages() {
     
     return msgs;
 }
+
+// Author Toggle Logic
+const toggleButtons = document.querySelectorAll('.segment-btn');
+const glidingPill = document.querySelector('.gliding-pill');
+
+function updateGlidingPill(index) {
+    if (glidingPill) {
+        // Assuming buttons are roughly equal width and container is relative
+        // We translate by index * 100% of the pill's own width (which matches button width)
+        // Or better: index * 36px (fixed width) + some gap if any.
+        // The CSS defines distinct buttons. Let's assume buttons are contiguous.
+        // Actually best generic way:
+        glidingPill.style.transform = `translateX(${index * 100}%)`;
+    }
+}
+
+// Initialize Pill Position based on default 'both' (index 1)
+// We need to find the index of the active button initially
+const initialActiveIndex = Array.from(toggleButtons).findIndex(b => b.classList.contains('active'));
+if (initialActiveIndex !== -1) updateGlidingPill(initialActiveIndex);
+
+
+toggleButtons.forEach((btn, index) => {
+    btn.addEventListener('click', () => {
+        // Update State
+        appState.filter.author = btn.dataset.value;
+        
+        // Update UI Visuals
+        toggleButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        
+        // Animate Pill
+        updateGlidingPill(index);
+        
+        // Re-render
+        updateUI();
+    });
+});
 
 // Helper: Escape HTML
 function safeTextWithHighlight(text, term) {
@@ -467,19 +513,31 @@ function updateUI() {
 
     // 2. Stats Rows
     const selectedMsgs = visibleMessages.filter(m => appState.selectedIds.has(m.id));
-    const totalSetChars = visibleMessages.reduce((sum, m) => sum + m.charCount, 0);
-    const totalSetTokens = Math.round(totalSetChars / 4);
-    const selectedSetChars = selectedMsgs.reduce((sum, m) => sum + m.charCount, 0);
-    const selectedSetTokens = Math.round(selectedSetChars / 4);
     
-    // Fix: Always update text content for counts
-    statCharsVal.textContent = `${selectedSetChars.toLocaleString()} / ${totalSetChars.toLocaleString()}`;
-    statTokensVal.textContent = `~${selectedSetTokens.toLocaleString()} / ~${totalSetTokens.toLocaleString()}`;
+    // Calculate Stats
+    // 1. Total (All messages)
+    const totalChars = appState.messages.reduce((sum, m) => sum + m.charCount, 0);
+    const totalTokens = Math.round(totalChars / 4);
     
-    // Fix: Update Selected Pill Count
+    // 2. Visible (Filtered)
+    const visibleChars = visibleMessages.reduce((sum, m) => sum + m.charCount, 0);
+    const visibleTokens = Math.round(visibleChars / 4);
+    
+    // 3. Selected (Checked)
+    const selectedChars = selectedMsgs.reduce((sum, m) => sum + m.charCount, 0);
+    const selectedTokens = Math.round(selectedChars / 4);
+    
+    // Format: Selected / Visible / Total
+    statCharsVal.textContent = `${selectedChars.toLocaleString()} / ${visibleChars.toLocaleString()} / ${totalChars.toLocaleString()}`;
+    statTokensVal.textContent = `~${selectedTokens.toLocaleString()} / ~${visibleTokens.toLocaleString()} / ~${totalTokens.toLocaleString()}`;
+    
+    // Fix: Update Selected Pill Count (now 3 stats: Selected / Visible / Total Messages)
     const selectedCountValueEl = document.getElementById('selectedCountValue');
     if (selectedCountValueEl) {
-        selectedCountValueEl.textContent = `${selectedMsgs.length} / ${visibleMessages.length}`;
+        const totalMsgs = appState.messages.length;
+        const visibleMsgs = visibleMessages.length;
+        const selectedCount = selectedMsgs.length;
+        selectedCountValueEl.textContent = `${selectedCount} / ${visibleMsgs} / ${totalMsgs}`;
     }
 
     updateCopyButtonLabel();

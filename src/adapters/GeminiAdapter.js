@@ -35,36 +35,34 @@ export class GeminiAdapter {
     
     // We will scan for multiple possibilities.
     
+    // We will scan for both user and model messages.
     let nodes = [];
     
-    // 1. Look for explicit user query classes used in some versions:
-    const queryNodes = document.querySelectorAll('.user-query');
-    if (queryNodes.length > 0) {
-        nodes = Array.from(queryNodes);
+    // Broaden selectors to capture both sides
+    // User: .user-query, .query-text
+    // Model: .model-response, .response-text
+    const allNodes = document.querySelectorAll('.user-query, .model-response, .query-text, .response-text, [data-test-id="user-message"], [data-test-id="model-message"]');
+    
+    if (allNodes.length > 0) {
+        nodes = Array.from(allNodes);
     } else {
-        // 2. Generic look for Message Item where it might be user
-        // Gemini often uses `infinite-scroller` -> `virtual-scroller` -> `div`
-        // We look for the text content within the chat bubble logic.
-        
-        // This selector targets the User's text bubble often found in recent builds
-        // 'text-body' is generic, so we need to be careful.
-        // Often Gemini user messages are in a container `user-message` or similar logic.
-        
-        // Let's try iterating all `message-content` if available and infer author?
-        // No, that's hard. 
-        
-        // Try searching for the edit icon wrapper often present on user messages
-        // or check for `[data-test-id="user-query"]` or `[aria-label^="Edit"]` parent?
-        
-        // Fallback: Using a broad selector for now to ensure we get *something* for the user to refine in future:
-        // `query-text` is a class often used.
-        nodes = Array.from(document.querySelectorAll('user-query, .query-text, [data-test-id="user-message"]'));
+        // Fallback: Try to find message containers by attribute if classes fail
+        nodes = Array.from(document.querySelectorAll('[data-message-id]'));
     }
 
     for (const [index, node] of nodes.entries()) {
         const rawText = node.innerText || node.textContent;
         const text = normalizeText(rawText);
         if (!text) continue;
+
+        // Determine Author
+        let author = 'assistant'; // Default to model
+        if (node.classList.contains('user-query') || 
+            node.classList.contains('query-text') || 
+            node.matches('[data-test-id="user-message"]') ||
+            node.getAttribute('data-is-user') === 'true') {
+            author = 'user';
+        }
 
         const hash = await generateMessageHash(text);
         const id = generateOccurrenceKey(hash, index);
@@ -77,7 +75,7 @@ export class GeminiAdapter {
             text,
             charCount: text.length,
             capturedAt: Date.now(),
-            author: 'user'
+            author
         });
     }
 
@@ -112,6 +110,46 @@ export class GeminiAdapter {
     });
 
     this.observer.observe(target, { childList: true, subtree: true });
+  }
+
+  async scanFullChat(options) {
+    if (this.isScanning) return;
+    this.isScanning = true;
+
+    // Gemini usually scrolls the main window or a specific main container
+    const scrollContainer = document.querySelector('main') || document.documentElement;
+
+    let noChangeCount = 0;
+    let lastScrollHeight = scrollContainer.scrollHeight;
+
+    try {
+      while (!options.shouldStop() && noChangeCount < 5) {
+        // Scroll up a bit
+        scrollContainer.scrollTop -= 500;
+        
+        await new Promise(r => setTimeout(r, 800));
+
+        const newScrollHeight = scrollContainer.scrollHeight;
+        if (Math.abs(newScrollHeight - lastScrollHeight) < 10) {
+            noChangeCount++;
+        } else {
+            noChangeCount = 0;
+            lastScrollHeight = newScrollHeight;
+        }
+        
+        if (scrollContainer.scrollTop <= 50) {
+             // If we hit top, break.
+             // But sometimes Gemini loads more on top?
+             // Assuming similar behavior to ChatGPT for now.
+             await new Promise(r => setTimeout(r, 1000));
+             if (scrollContainer.scrollTop <= 50 && scrollContainer.scrollHeight === lastScrollHeight) {
+                 break; 
+             }
+        }
+      }
+    } finally {
+      this.isScanning = false;
+    }
   }
 
   disconnect() {

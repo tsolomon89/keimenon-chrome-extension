@@ -64,11 +64,13 @@
         async runOnce() {
           const messages = [];
           const conversationId = this.context.location ? this.getConversationId(this.context.location.href) : "mock-conversation";
-          let nodes = Array.from(this.context.querySelectorAll('[data-message-author-role="user"]'));
+          let nodes = Array.from(this.context.querySelectorAll("[data-message-author-role]"));
           for (const [index, node] of nodes.entries()) {
             const rawText = node.innerText || node.textContent;
             const text = normalizeText(rawText);
             if (!text) continue;
+            const role = node.getAttribute("data-message-author-role");
+            const author = role === "user" ? "user" : "assistant";
             const hash = await generateMessageHash(text);
             const id = generateOccurrenceKey(hash, index);
             messages.push({
@@ -79,7 +81,7 @@
               text,
               charCount: text.length,
               capturedAt: Date.now(),
-              author: "user"
+              author
             });
           }
           return messages;
@@ -189,28 +191,28 @@
           const messages = [];
           const conversationId = this.getConversationId(window.location.href) || "unknown";
           const selectors = [
-            ".font-user-message",
-            // Old/Specific
-            '[data-message-author="user"]',
-            // Common attribute
-            '[data-testid="user-message"]',
-            ".human-message"
-            // Another common variant
+            "[data-message-author]",
+            // Catches both "user" and "assistant"
+            ".font-user-message, .font-claude-message",
+            // Fallback class based
+            '[data-testid="user-message"], [data-testid="claude-message"]'
           ];
-          let userMessageNodes = [];
+          let messageNodes = [];
           for (const sel of selectors) {
             const nodes = document.querySelectorAll(sel);
             if (nodes.length > 0) {
-              userMessageNodes = Array.from(nodes);
+              messageNodes = Array.from(nodes);
               break;
             }
           }
-          if (userMessageNodes.length === 0) {
-          }
-          for (const [index, node] of userMessageNodes.entries()) {
+          for (const [index, node] of messageNodes.entries()) {
             const rawText = node.innerText || node.textContent;
             const text = normalizeText(rawText);
             if (!text) continue;
+            let author = "assistant";
+            if (node.getAttribute("data-message-author") === "user" || node.classList.contains("font-user-message") || node.matches('[data-testid="user-message"]')) {
+              author = "user";
+            }
             const hash = await generateMessageHash(text);
             const id = generateOccurrenceKey(hash, index);
             messages.push({
@@ -221,7 +223,7 @@
               text,
               charCount: text.length,
               capturedAt: Date.now(),
-              author: "user"
+              author
             });
           }
           return messages;
@@ -313,8 +315,7 @@
           const messages = [];
           const conversationId = this.getConversationId(window.location.href);
           const bubbles = Array.from(document.querySelectorAll(".message-bubble"));
-          const userBubbles = bubbles.filter((node) => node.classList.contains("bg-surface-l1"));
-          for (const [index, node] of userBubbles.entries()) {
+          for (const [index, node] of bubbles.entries()) {
             const markdownContainer = node.querySelector(".response-content-markdown");
             let text = "";
             if (markdownContainer) {
@@ -323,6 +324,7 @@
               text = normalizeText(node.innerText);
             }
             if (!text) continue;
+            const author = node.classList.contains("bg-surface-l1") ? "user" : "assistant";
             const hash = await generateMessageHash(text);
             const id = generateOccurrenceKey(hash, index);
             messages.push({
@@ -333,7 +335,7 @@
               text,
               charCount: text.length,
               capturedAt: Date.now(),
-              author: "user"
+              author
             });
           }
           return messages;
@@ -361,6 +363,34 @@
             }
           });
           this.observer.observe(target, { childList: true, subtree: true });
+        }
+        async scanFullChat(options) {
+          if (this.isScanning) return;
+          this.isScanning = true;
+          const scrollContainer = document.querySelector("main") || document.documentElement;
+          let noChangeCount = 0;
+          let lastScrollHeight = scrollContainer.scrollHeight;
+          try {
+            while (!options.shouldStop() && noChangeCount < 5) {
+              scrollContainer.scrollTop -= 500;
+              await new Promise((r) => setTimeout(r, 800));
+              const newScrollHeight = scrollContainer.scrollHeight;
+              if (Math.abs(newScrollHeight - lastScrollHeight) < 10) {
+                noChangeCount++;
+              } else {
+                noChangeCount = 0;
+                lastScrollHeight = newScrollHeight;
+              }
+              if (scrollContainer.scrollTop <= 50) {
+                await new Promise((r) => setTimeout(r, 1e3));
+                if (scrollContainer.scrollTop <= 50 && scrollContainer.scrollHeight === lastScrollHeight) {
+                  break;
+                }
+              }
+            }
+          } finally {
+            this.isScanning = false;
+          }
         }
         disconnect() {
           if (this.observer) {
@@ -397,16 +427,20 @@
           const messages = [];
           const conversationId = this.getConversationId(window.location.href);
           let nodes = [];
-          const queryNodes = document.querySelectorAll(".user-query");
-          if (queryNodes.length > 0) {
-            nodes = Array.from(queryNodes);
+          const allNodes = document.querySelectorAll('.user-query, .model-response, .query-text, .response-text, [data-test-id="user-message"], [data-test-id="model-message"]');
+          if (allNodes.length > 0) {
+            nodes = Array.from(allNodes);
           } else {
-            nodes = Array.from(document.querySelectorAll('user-query, .query-text, [data-test-id="user-message"]'));
+            nodes = Array.from(document.querySelectorAll("[data-message-id]"));
           }
           for (const [index, node] of nodes.entries()) {
             const rawText = node.innerText || node.textContent;
             const text = normalizeText(rawText);
             if (!text) continue;
+            let author = "assistant";
+            if (node.classList.contains("user-query") || node.classList.contains("query-text") || node.matches('[data-test-id="user-message"]') || node.getAttribute("data-is-user") === "true") {
+              author = "user";
+            }
             const hash = await generateMessageHash(text);
             const id = generateOccurrenceKey(hash, index);
             messages.push({
@@ -417,7 +451,7 @@
               text,
               charCount: text.length,
               capturedAt: Date.now(),
-              author: "user"
+              author
             });
           }
           return messages;
@@ -445,6 +479,34 @@
             }
           });
           this.observer.observe(target, { childList: true, subtree: true });
+        }
+        async scanFullChat(options) {
+          if (this.isScanning) return;
+          this.isScanning = true;
+          const scrollContainer = document.querySelector("main") || document.documentElement;
+          let noChangeCount = 0;
+          let lastScrollHeight = scrollContainer.scrollHeight;
+          try {
+            while (!options.shouldStop() && noChangeCount < 5) {
+              scrollContainer.scrollTop -= 500;
+              await new Promise((r) => setTimeout(r, 800));
+              const newScrollHeight = scrollContainer.scrollHeight;
+              if (Math.abs(newScrollHeight - lastScrollHeight) < 10) {
+                noChangeCount++;
+              } else {
+                noChangeCount = 0;
+                lastScrollHeight = newScrollHeight;
+              }
+              if (scrollContainer.scrollTop <= 50) {
+                await new Promise((r) => setTimeout(r, 1e3));
+                if (scrollContainer.scrollTop <= 50 && scrollContainer.scrollHeight === lastScrollHeight) {
+                  break;
+                }
+              }
+            }
+          } finally {
+            this.isScanning = false;
+          }
         }
         disconnect() {
           if (this.observer) {

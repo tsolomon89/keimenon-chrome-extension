@@ -26,8 +26,8 @@ export class ChatGPTAdapter {
     const messages = [];
     const conversationId = this.context.location ? this.getConversationId(this.context.location.href) : 'mock-conversation';
     
-    // Primary selector: Attribute based
-    let nodes = Array.from(this.context.querySelectorAll('[data-message-author-role="user"]'));
+    // Primary selector: Attribute based (both user and assistant)
+    let nodes = Array.from(this.context.querySelectorAll('[data-message-author-role]'));
     
     // Process nodes
     for (const [index, node] of nodes.entries()) {
@@ -35,12 +35,10 @@ export class ChatGPTAdapter {
         const text = normalizeText(rawText);
         if (!text) continue;
 
+        const role = node.getAttribute('data-message-author-role');
+        const author = role === 'user' ? 'user' : 'assistant';
+
         const hash = await generateMessageHash(text);
-        // Key needs conversationId in real implementation if we persisted, 
-        // but for now ID is just unique per session/view.
-        // Spec 6.3 says Key: platform + conversationId + messageHash for dedupe set.
-        // But Message.id usually implies the UI key.
-        // Let's keep ID as hash_index for simple UI rendering stability.
         const id = generateOccurrenceKey(hash, index);
         
         messages.push({
@@ -51,7 +49,7 @@ export class ChatGPTAdapter {
             text,
             charCount: text.length,
             capturedAt: Date.now(),
-            author: 'user'
+            author
         });
     }
 

@@ -19,12 +19,30 @@ $manifestPath = "manifest.json"
 # 1. Read Version
 $pkg = Get-Content $pkgPath -Raw | ConvertFrom-Json
 $currentVersion = $pkg.version
+Write-Host "Current version: $currentVersion"
 
-Write-Host "Using version: $currentVersion"
-$newVersion = $currentVersion
+# 2. Increment Version (Patch)
+$verParts = $currentVersion.Split('.')
+if ($verParts.Count -eq 3) {
+    $patch = [int]$verParts[2] + 1
+    $newVersion = "$($verParts[0]).$($verParts[1]).$patch"
+} else {
+    Write-Warning "Version format not strictly major.minor.patch. Appending .1"
+    $newVersion = "$currentVersion.1"
+}
 
-# 2. Skip Update package.json (already updated manually)
-# 3. Skip Update manifest.json (already updated manually)
+Write-Host "Incrementing to version: $newVersion"
+
+# 3. Update package.json
+$pkg.version = $newVersion
+$pkg | ConvertTo-Json -Depth 10 | Set-Content $pkgPath
+Write-Host "Updated $pkgPath"
+
+# 4. Update manifest.json
+$manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
+$manifest.version = $newVersion
+$manifest | ConvertTo-Json -Depth 10 | Set-Content $manifestPath
+Write-Host "Updated $manifestPath"
 
 # 4. Build
 Write-Host "Building project..."
