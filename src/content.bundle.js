@@ -48,10 +48,11 @@
       init_hash();
       init_normalize();
       ChatGPTAdapter = class {
-        constructor() {
+        constructor(context = document) {
           this.name = "chatgpt";
           this.observer = null;
           this.isScanning = false;
+          this.context = context;
         }
         isSupportedLocation(url) {
           return url.includes("chatgpt.com/c/") || url.includes("chat.openai.com/c/");
@@ -62,8 +63,8 @@
         }
         async runOnce() {
           const messages = [];
-          const conversationId = this.getConversationId(window.location.href) || "unknown";
-          let nodes = Array.from(document.querySelectorAll('[data-message-author-role="user"]'));
+          const conversationId = this.context.location ? this.getConversationId(this.context.location.href) : "mock-conversation";
+          let nodes = Array.from(this.context.querySelectorAll('[data-message-author-role="user"]'));
           for (const [index, node] of nodes.entries()) {
             const rawText = node.innerText || node.textContent;
             const text = normalizeText(rawText);
@@ -85,7 +86,7 @@
         }
         observe(callback) {
           if (this.observer) return;
-          const target = document.querySelector("main") || document.body;
+          const target = this.context.querySelector("main") || this.context.body;
           let timeoutId;
           const debouncedCallback = () => {
             clearTimeout(timeoutId);
@@ -148,17 +149,17 @@
           }
         }
         findScrollContainer() {
-          const candidates = document.querySelectorAll('div[class*="react-scroll-to-bottom"]');
+          const candidates = this.context.querySelectorAll('div[class*="react-scroll-to-bottom"]');
           for (const c of candidates) {
             if (c.scrollHeight > c.clientHeight) return c;
           }
-          const generic = document.querySelectorAll(".overflow-y-auto");
+          const generic = this.context.querySelectorAll(".overflow-y-auto");
           for (const g of generic) {
             if (g.scrollHeight > g.clientHeight && g.innerText.length > 500) {
               return g;
             }
           }
-          return document.querySelector("main") || document.documentElement;
+          return this.context.querySelector("main") || this.context.documentElement;
         }
       };
     }
@@ -287,6 +288,175 @@
     }
   });
 
+  // src/adapters/GrokAdapter.js
+  var GrokAdapter;
+  var init_GrokAdapter = __esm({
+    "src/adapters/GrokAdapter.js"() {
+      "use strict";
+      init_hash();
+      init_normalize();
+      GrokAdapter = class {
+        constructor() {
+          this.name = "grok";
+          this.observer = null;
+          this.isScanning = false;
+        }
+        isSupportedLocation(url) {
+          return url.includes("x.com/i/grok") || url.includes("grok.com");
+        }
+        getConversationId(url) {
+          const match = url.match(/\/chat\/([a-zA-Z0-9-]+)/);
+          if (match) return match[1];
+          return "current-session";
+        }
+        async runOnce() {
+          const messages = [];
+          const conversationId = this.getConversationId(window.location.href);
+          const bubbles = Array.from(document.querySelectorAll(".message-bubble"));
+          const userBubbles = bubbles.filter((node) => node.classList.contains("bg-surface-l1"));
+          for (const [index, node] of userBubbles.entries()) {
+            const markdownContainer = node.querySelector(".response-content-markdown");
+            let text = "";
+            if (markdownContainer) {
+              text = normalizeText(markdownContainer.innerText);
+            } else {
+              text = normalizeText(node.innerText);
+            }
+            if (!text) continue;
+            const hash = await generateMessageHash(text);
+            const id = generateOccurrenceKey(hash, index);
+            messages.push({
+              id,
+              platform: "grok",
+              conversationId,
+              index,
+              text,
+              charCount: text.length,
+              capturedAt: Date.now(),
+              author: "user"
+            });
+          }
+          return messages;
+        }
+        observe(callback) {
+          if (this.observer) return;
+          const target = document.querySelector("main") || document.body;
+          let timeoutId;
+          const debouncedCallback = () => {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+              callback();
+            }, 1e3);
+          };
+          this.observer = new MutationObserver((mutations) => {
+            let shouldTrigger = false;
+            for (const mutation of mutations) {
+              if (mutation.addedNodes.length > 0) {
+                shouldTrigger = true;
+                break;
+              }
+            }
+            if (shouldTrigger) {
+              debouncedCallback();
+            }
+          });
+          this.observer.observe(target, { childList: true, subtree: true });
+        }
+        disconnect() {
+          if (this.observer) {
+            this.observer.disconnect();
+            this.observer = null;
+          }
+          this.isScanning = false;
+        }
+      };
+    }
+  });
+
+  // src/adapters/GeminiAdapter.js
+  var GeminiAdapter;
+  var init_GeminiAdapter = __esm({
+    "src/adapters/GeminiAdapter.js"() {
+      "use strict";
+      init_hash();
+      init_normalize();
+      GeminiAdapter = class {
+        constructor() {
+          this.name = "gemini";
+          this.observer = null;
+          this.isScanning = false;
+        }
+        isSupportedLocation(url) {
+          return url.includes("gemini.google.com");
+        }
+        getConversationId(url) {
+          const match = url.match(/\/app\/([a-zA-Z0-9-]+)/);
+          return match ? match[1] : "current-session";
+        }
+        async runOnce() {
+          const messages = [];
+          const conversationId = this.getConversationId(window.location.href);
+          let nodes = [];
+          const queryNodes = document.querySelectorAll(".user-query");
+          if (queryNodes.length > 0) {
+            nodes = Array.from(queryNodes);
+          } else {
+            nodes = Array.from(document.querySelectorAll('user-query, .query-text, [data-test-id="user-message"]'));
+          }
+          for (const [index, node] of nodes.entries()) {
+            const rawText = node.innerText || node.textContent;
+            const text = normalizeText(rawText);
+            if (!text) continue;
+            const hash = await generateMessageHash(text);
+            const id = generateOccurrenceKey(hash, index);
+            messages.push({
+              id,
+              platform: "gemini",
+              conversationId,
+              index,
+              text,
+              charCount: text.length,
+              capturedAt: Date.now(),
+              author: "user"
+            });
+          }
+          return messages;
+        }
+        observe(callback) {
+          if (this.observer) return;
+          const target = document.querySelector("main") || document.body;
+          let timeoutId;
+          const debouncedCallback = () => {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+              callback();
+            }, 1e3);
+          };
+          this.observer = new MutationObserver((mutations) => {
+            let shouldTrigger = false;
+            for (const mutation of mutations) {
+              if (mutation.addedNodes.length > 0) {
+                shouldTrigger = true;
+                break;
+              }
+            }
+            if (shouldTrigger) {
+              debouncedCallback();
+            }
+          });
+          this.observer.observe(target, { childList: true, subtree: true });
+        }
+        disconnect() {
+          if (this.observer) {
+            this.observer.disconnect();
+            this.observer = null;
+          }
+          this.isScanning = false;
+        }
+      };
+    }
+  });
+
   // src/adapters/AdapterFactory.js
   var AdapterFactory;
   var init_AdapterFactory = __esm({
@@ -294,6 +464,8 @@
       "use strict";
       init_ChatGPTAdapter();
       init_ClaudeAdapter();
+      init_GrokAdapter();
+      init_GeminiAdapter();
       AdapterFactory = class {
         static createAdapter(url) {
           if (url.includes("chatgpt.com") || url.includes("chat.openai.com")) {
@@ -301,6 +473,12 @@
           }
           if (url.includes("claude.ai")) {
             return new ClaudeAdapter();
+          }
+          if (url.includes("x.com/i/grok") || url.includes("grok.com")) {
+            return new GrokAdapter();
+          }
+          if (url.includes("gemini.google.com")) {
+            return new GeminiAdapter();
           }
           return null;
         }

@@ -16,28 +16,15 @@ Write-Host "Reading current version..."
 $pkgPath = "package.json"
 $manifestPath = "manifest.json"
 
-# 1. Read & Bump Version
+# 1. Read Version
 $pkg = Get-Content $pkgPath -Raw | ConvertFrom-Json
 $currentVersion = $pkg.version
 
-$vParts = $currentVersion.Split('.')
-if ($vParts.Count -ne 3) {
-    Write-Error "Version format unexpected: $currentVersion. Expected x.y.z"
-    exit 1
-}
+Write-Host "Using version: $currentVersion"
+$newVersion = $currentVersion
 
-# Increment patch (e.g. 1.0.0 -> 1.0.1)
-$newVersion = "$($vParts[0]).$($vParts[1]).$([int]$vParts[2] + 1)"
-Write-Host "Bumping version: $currentVersion -> $newVersion"
-
-# 2. Update package.json
-$pkg.version = $newVersion
-$pkg | ConvertTo-Json -Depth 10 | Set-Content $pkgPath -Encoding UTF8
-
-# 3. Update manifest.json
-$manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
-$manifest.version = $newVersion
-$manifest | ConvertTo-Json -Depth 10 | Set-Content $manifestPath -Encoding UTF8
+# 2. Skip Update package.json (already updated manually)
+# 3. Skip Update manifest.json (already updated manually)
 
 # 4. Build
 Write-Host "Building project..."

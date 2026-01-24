@@ -1,8 +1,8 @@
-# Privacy Policy for Keimenon Lite
-
-**Effective Date:** January 24, 2026
+# Privacy & Security Documentation
 
 ## 1. Formal Privacy Policy
+
+**Effective Date:** January 24, 2026
 
 **Keimenon Lite** ("the Extension") is a browser extension designed to help users extract, format, and archive their own conversations from supported AI chat platforms (e.g., ChatGPT, Claude, Gemini, Grok). This policy outlines how unique data is handled.
 
@@ -54,3 +54,9 @@ We welcome responsible disclosure of security vulnerabilities.
 *   **Contact:** Please email `security@keimenon.com`.
 *   **Content:** Do not include sensitive personal data (e.g., actual private chat logs) in your report unless strictly necessary to reproduce a bug.
 *   **Response:** We review all reports and will address confirmed vulnerabilities in good faith and as quickly as possible.
+
+---
+
+## 4. Chrome Web Store Disclosure Summary
+
+Keimenon Lite processes all user data locally within the browser. It does not collect, transmit, or sell user chat content, browsing history, or personal identifiers. Optional email collection is strictly opt-in for newsletter updates only. No user data is stored on developer servers.

@@ -5,10 +5,11 @@ import { normalizeText } from '../shared/normalize.js';
  * @implements {import('../shared/types').PlatformAdapter}
  */
 export class ChatGPTAdapter {
-  constructor() {
+  constructor(context = document) {
     this.name = 'chatgpt';
     this.observer = null;
     this.isScanning = false;
+    this.context = context;
   }
 
   isSupportedLocation(url) {
@@ -23,10 +24,10 @@ export class ChatGPTAdapter {
 
   async runOnce() {
     const messages = [];
-    const conversationId = this.getConversationId(window.location.href) || 'unknown';
+    const conversationId = this.context.location ? this.getConversationId(this.context.location.href) : 'mock-conversation';
     
     // Primary selector: Attribute based
-    let nodes = Array.from(document.querySelectorAll('[data-message-author-role="user"]'));
+    let nodes = Array.from(this.context.querySelectorAll('[data-message-author-role="user"]'));
     
     // Process nodes
     for (const [index, node] of nodes.entries()) {
@@ -60,7 +61,7 @@ export class ChatGPTAdapter {
   observe(callback) {
     if (this.observer) return;
     
-    const target = document.querySelector('main') || document.body;
+    const target = this.context.querySelector('main') || this.context.body;
     
     let timeoutId;
     const debouncedCallback = () => {
@@ -141,19 +142,19 @@ export class ChatGPTAdapter {
       // Structure changes often, so we try a few heuristics
       
       // 1. Look for the main scrollable conversational area
-      const candidates = document.querySelectorAll('div[class*="react-scroll-to-bottom"]');
+      const candidates = this.context.querySelectorAll('div[class*="react-scroll-to-bottom"]');
       for (const c of candidates) {
           if (c.scrollHeight > c.clientHeight) return c;
       }
 
       // 2. Generic fallback for overflow-y-auto
-      const generic = document.querySelectorAll('.overflow-y-auto');
+      const generic = this.context.querySelectorAll('.overflow-y-auto');
       for (const g of generic) {
           if (g.scrollHeight > g.clientHeight && g.innerText.length > 500) {
               return g;
           }
       }
 
-      return document.querySelector('main') || document.documentElement;
+      return this.context.querySelector('main') || this.context.documentElement;
   }
 }

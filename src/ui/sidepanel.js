@@ -1,5 +1,14 @@
 
+
 import { authService } from '../services/auth.js';
+
+// Mock Injection for Dev Preview
+if (new URLSearchParams(window.location.search).has('mock')) {
+    import('./dev-mocks.js').then(() => {
+        console.log('[SidePanel] Injected dev-mocks.js');
+    }).catch(e => console.error('[SidePanel] Failed to inject mock:', e));
+}
+
 import { analytics } from '../services/analytics.js';
 import { filterMessages } from '../shared/filter.js';
 

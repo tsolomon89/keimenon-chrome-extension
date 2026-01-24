@@ -146,14 +146,7 @@
     </div>
   </div>
   <!-- Mock Injection for Dev Preview -->
-  <script>
-    if (new URLSearchParams(window.location.search).has('mock')) {
-        const script = document.createElement('script');
-        script.src = 'dev-mocks.js';
-        document.body.appendChild(script);
-        console.log('[SidePanel] Injecting dev-mocks.js');
-    }
-  </script>
+  <!-- Mock Injection moved to sidepanel.js -->
   <script type="module" src="sidepanel.js"></script>
 </body>
 </html>
