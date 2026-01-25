@@ -68,66 +68,7 @@
   }
 }
 
-/* Manual Dark Override for Preview */
-body.force-dark {
-    --md-sys-color-primary: #a8c7fa;
-    --md-sys-color-on-primary: #002f65;
-    --md-sys-color-primary-container: #00478f;
-    --md-sys-color-on-primary-container: #d7e3ff;
 
-    --md-sys-color-secondary: #c2c7cf;
-    --md-sys-color-on-secondary: #2c313a;
-    --md-sys-color-secondary-container: #424751;
-    --md-sys-color-on-secondary-container: #dee3eb;
-
-    --md-sys-color-surface: #0f1115; 
-    --md-sys-color-surface-container: #181a20;
-    --md-sys-color-surface-container-high: #21242b;
-    --md-sys-color-surface-container-low: #131519;
-
-    --md-sys-color-on-surface: #e2e2e6;
-    --md-sys-color-on-surface-variant: #c4c7c5;
-    
-    --md-sys-color-outline: #8e9099;
-    --md-sys-color-outline-variant: #444746;
-
-    --glass-bg: rgba(24, 26, 32, 0.85);
-    --glass-border: rgba(255, 255, 255, 0.06);
-    
-    --shadow-1: 0 2px 6px rgba(0,0,0,0.4);
-    --shadow-2: 0 8px 20px rgba(0,0,0,0.5);
-}
-
-/* Manual Light Override for Preview */
-body.force-light {
-    --md-sys-color-primary: #005ac1;
-    --md-sys-color-on-primary: #ffffff;
-    --md-sys-color-primary-container: #d8e2ff;
-    --md-sys-color-on-primary-container: #001a41;
-
-    --md-sys-color-secondary: #575e71;
-    --md-sys-color-on-secondary: #ffffff;
-    --md-sys-color-secondary-container: #dbe2f9;
-    --md-sys-color-on-secondary-container: #141b2c;
-
-    --md-sys-color-surface: #fdfbff;
-    --md-sys-color-surface-container: #f0f4f9; 
-    --md-sys-color-surface-container-high: #eceef4;
-    --md-sys-color-surface-container-low: #f7f9fb;
-    
-    --md-sys-color-on-surface: #1a1b1e;
-    --md-sys-color-on-surface-variant: #444746;
-    
-    --md-sys-color-outline: #74777f;
-    --md-sys-color-outline-variant: #c4c7c5;
-
-    --glass-bg: rgba(240, 244, 249, 0.85);
-    --glass-border: rgba(255, 255, 255, 0.5);
-    --glass-blur: 16px;
-    
-    --shadow-1: 0 2px 4px rgba(0,0,0,0.04);
-    --shadow-2: 0 8px 16px rgba(0,0,0,0.08);
-}
 
 body {
   margin: 0;
@@ -140,6 +81,12 @@ body {
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden; 
 }
+
+/* Utilities */
+.spacer { flex: 1; }
+.invisible { visibility: hidden; }
+.flex-center-gap { display: flex; align-items: center; gap: 8px; }
+
 
 /* Animations */
 .hidden { display: none !important; }
@@ -203,13 +150,6 @@ body {
     animation: scan-beam 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
-/* Top Bar */
-.top-bar {
-  padding: 12px 16px 8px 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
 
 .version-label {
   font-weight: 400;
@@ -220,12 +160,13 @@ body {
 }
 
 .status-badge {
-  font-size: 11px;
-  font-weight: 500;
-  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 6px 18px;
   background-color: var(--md-sys-color-primary-container);
   color: var(--md-sys-color-on-primary-container);
   border-radius: 100px;
+  text-transform: uppercase;
   transition: background-color 0.3s, color 0.3s;
 }
 
@@ -234,7 +175,7 @@ body {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 0 16px 8px 16px;
+    padding: 12px 16px 8px 16px;
 }
 
 /* Icon Buttons */
@@ -243,7 +184,7 @@ body {
     height: 40px;
     border-radius: 12px; /* Squircle */
     border: 1px solid transparent;
-    background: var(--md-sys-color-surface-container);
+    background: transparent;
     color: var(--md-sys-color-on-surface);
     display: flex;
     align-items: center;
@@ -275,44 +216,45 @@ body {
     align-items: center;
     background: var(--md-sys-color-surface-container);
     border: 1px solid var(--md-sys-color-outline-variant);
-    border-radius: 100px; /* Fully rounded */
-    padding: 2px;
-    height: 40px;
+    border-radius: 10px; /* Fully rounded */
+    padding: 3px; /* 3px padding all around */
+    height: 44px; /* (36px btn + 3px top + 3px bottom) = 42px */
     position: relative; /* Context for gliding pill */
     z-index: 0;
+    gap: 4px; /* Separation between icons */
 }
 
 /* Gliding Pill Animator */
 .gliding-pill {
     position: absolute;
-    top: 2px;
-    bottom: 2px;
-    left: 2px;
-    width: 36px; /* Match button width approx */
+    top: 3px; 
+    bottom: 3px;
+    width: 36px; /* Match button width */
+    height: 36px; /* Square */
+    padding: 0;
+    margin: 0;
     background: var(--md-sys-color-secondary-container);
-    border-radius: 100px;
-    transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1);
+    border-radius: 8px;
+    transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
     z-index: 1;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    box-shadow: 0 1px 2px rgba(36, 33, 33, 0.1);
 }
 
 .segment-btn {
     width: 36px;
-    height: 34px; /* slightly smaller than container to fit padding */
-    border-radius: 100px;
+    height: 36px; /* Square */
+    border-radius: 8px;
     border: none;
     background: transparent;
     color: var(--md-sys-color-on-surface-variant);
+
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     transition: color 0.2s;
     position: relative;
-    z-index: 2; /* Content above pill */
-}
-
-.segment-btn:hover {
+    z-index: 2;
     color: var(--md-sys-color-on-surface);
     /* No bg color on hover to let pill shine, or maybe faint highlight? */
     /* background: var(--md-sys-color-surface-container-high); */ 
@@ -327,7 +269,11 @@ body {
 /* Search Row */
 .search-row {
   padding: 0 16px 8px 16px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
+
 
 .search-input {
   width: 100%;
@@ -337,10 +283,21 @@ body {
   font-family: inherit;
   font-size: 13px;
   outline: none;
+  padding: 0;
+  height: 100%;
 }
 
+.search-icon {
+    margin-right: 8px;
+}
+
+.search-row .text-field {
+    flex: 1;
+}
+
+
 /* Focus state on the fieldset wrapper */
-.stat-field:focus-within {
+.text-field:focus-within {
     border-color: var(--md-sys-color-primary);
     background: var(--md-sys-color-surface);
     box-shadow: 0 0 0 1px var(--md-sys-color-primary); /* Use smaller shadow or just border color */
@@ -354,8 +311,8 @@ body {
     padding: 0 16px 4px 16px;
 }
 
-/* New Material Design 3 Outlined Style for Stats */
-.stat-field {
+/* New Material Design 3 Outlined Style for Text Fields */
+.text-field {
     margin: 0;
     padding: 0 12px;
     border-radius: 12px;
@@ -369,13 +326,13 @@ body {
 }
 
 /* Flex container for icon + text inside fieldset */
-.stat-content-row {
+.text-field-content {
     display: flex;
     align-items: center;
     width: 100%;
 }
 
-.stat-legend {
+.text-field-legend {
     margin-left: -4px; /* Offset to align with text start */
     padding: 0 4px;
     font-size: 9px;
@@ -398,10 +355,10 @@ body {
 }
 
 /* Clickable Fieldsets */
-.stat-field.clickable {
+.text-field.editable {
     cursor: pointer;
 }
-.stat-field.clickable:hover {
+.text-field.editable:hover {
     background: var(--md-sys-color-surface-container-high);
     border-color: var(--md-sys-color-on-surface-variant);
 }
@@ -440,6 +397,7 @@ body {
 .empty-state::before {
     content: '📨'; 
     font-size: 48px;
+
     margin-bottom: 16px;
     opacity: 0.5;
 }
@@ -600,6 +558,7 @@ mark {
     top: 50px;
     right: 16px;
     background: var(--md-sys-color-surface-container-high);
+
     border-radius: 12px;
     box-shadow: var(--shadow-2);
     padding: 8px;
@@ -631,8 +590,37 @@ mark {
     background: rgba(255,255,255,0.05); 
 }
 
+/* Hide Spinners on Number Input */
+input[type=number]::-webkit-inner-spin-button, 
+input[type=number]::-webkit-outer-spin-button { 
+  -webkit-appearance: none; 
+  margin: 0; 
+}
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
+/* Ensure inputs inherit correct color in dark mode */
+input, textarea, select {
+    color: var(--md-sys-color-on-surface);
+}
+
+.menu-item-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.menu-separator {
+    border-top: 1px solid var(--md-sys-color-outline-variant);
+    margin: 4px 0;
+    opacity: 0.2;
+}
+
+
 /* Filter Sheet */
-.sheet-overlay {
+.overlay {
     position: fixed;
     top: 0;
     left: 0;
@@ -644,7 +632,7 @@ mark {
     pointer-events: none;
     transition: opacity 0.3s;
 }
-.sheet-overlay.open {
+.overlay.open {
     opacity: 1;
     pointer-events: auto;
 }
@@ -727,6 +715,7 @@ mark {
     height: 16px;
     cursor: pointer;
     accent-color: var(--md-sys-color-primary);
+    color-scheme: dark; /* Force dark rendering to avoid white background */
 }
 
 /* Hidden State */
@@ -758,6 +747,10 @@ mark {
     border: 1px solid var(--md-sys-color-surface);
 }
 
+/* Refactoring Additions */
+
+
+
 /* Text Action Button (Clear) */
 .action-btn-text {
     background: none;
@@ -772,3 +765,62 @@ mark {
 .action-btn-text:hover {
     background: var(--md-sys-color-surface-container-high);
 }
+
+/* --- Icon System (External SVGs with Color Control) --- */
+.svg-icon {
+    width: 20px;
+    height: 20px;
+    background-color: currentColor;
+    mask-repeat: no-repeat;
+    mask-position: center;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    -webkit-mask-size: contain;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+/* Sizes */
+.svg-icon.small { width: 16px; height: 16px; }
+.svg-icon.medium { width: 20px; height: 20px; }
+.svg-icon.large { width: 24px; height: 24px; }
+
+/* Icons */
+.icon-scan { -webkit-mask-image: url('/assets/icons/icon_scan_page.svg'); mask-image: url('/assets/icons/icon_scan_page.svg'); }
+.icon-refresh { -webkit-mask-image: url('/assets/icons/icon_refresh.svg'); mask-image: url('/assets/icons/icon_refresh.svg'); }
+.icon-user { -webkit-mask-image: url('/assets/icons/icon_man.svg'); mask-image: url('/assets/icons/icon_man.svg'); }
+.icon-bot { -webkit-mask-image: url('/assets/icons/icon_machine.svg'); mask-image: url('/assets/icons/icon_machine.svg'); }
+.icon-both { -webkit-mask-image: url('/assets/icons/icon_manMachine.svg'); mask-image: url('/assets/icons/icon_manMachine.svg'); }
+.icon-copy { -webkit-mask-image: url('/assets/icons/icon_copy.svg'); mask-image: url('/assets/icons/icon_copy.svg'); }
+.icon-check-empty { -webkit-mask-image: url('/assets/icons/icon_check_empty.svg'); mask-image: url('/assets/icons/icon_check_empty.svg'); }
+.icon-check-full { -webkit-mask-image: url('/assets/icons/icon_check_full.svg'); mask-image: url('/assets/icons/icon_check_full.svg'); }
+.icon-check-indeterminate { -webkit-mask-image: url('/assets/icons/icon_check_indeterminate.svg'); mask-image: url('/assets/icons/icon_check_indeterminate.svg'); }
+.icon-visibility-on { -webkit-mask-image: url('/assets/icons/icon_visibility_on.svg'); mask-image: url('/assets/icons/icon_visibility_on.svg'); }
+.icon-visibility-off { -webkit-mask-image: url('/assets/icons/icon_visibility_off.svg'); mask-image: url('/assets/icons/icon_visibility_off.svg'); }
+.icon-search { -webkit-mask-image: url('/assets/icons/icon_search.svg'); mask-image: url('/assets/icons/icon_search.svg'); }
+.icon-filter { -webkit-mask-image: url('/assets/icons/icon_filters.svg'); mask-image: url('/assets/icons/icon_filters.svg'); }
+.icon-more { -webkit-mask-image: url('/assets/icons/icon_more_vert.svg'); mask-image: url('/assets/icons/icon_more_vert.svg'); }
+
+/* Sort Icons */
+.icon-arrow-up { -webkit-mask-image: url('/assets/icons/icon_arrow_up.svg'); mask-image: url('/assets/icons/icon_arrow_up.svg'); }
+.icon-arrow-down { -webkit-mask-image: url('/assets/icons/icon_arrow_down.svg'); mask-image: url('/assets/icons/icon_arrow_down.svg'); }
+.icon-arrow-indeterminate { -webkit-mask-image: url('/assets/icons/icon_arrow_indeterminate.svg'); mask-image: url('/assets/icons/icon_arrow_indeterminate.svg'); }
+
+/* Markdown Content */
+.markdown-content {
+    line-height: 1.6;
+    color: var(--md-sys-color-on-surface);
+}
+.markdown-content h1 { font-size: 16px; margin: 16px 0 8px 0; }
+.markdown-content h2 { font-size: 14px; margin: 12px 0 8px 0; color: var(--md-sys-color-primary); }
+.markdown-content p { margin: 8px 0; font-size: 13px; color: var(--md-sys-color-on-surface-variant); }
+
+/* Standard appearance fix */
+input[type=number]::-webkit-inner-spin-button, 
+input[type=number]::-webkit-outer-spin-button { 
+  -webkit-appearance: none; 
+  appearance: none; /* Fix Lint ID: 683920fa-f37c-4323-b9e9-23a255cc24b0 */
+  margin: 0; 
+}
+

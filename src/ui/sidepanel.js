@@ -2,12 +2,6 @@
 
 import { authService } from '../services/auth.js';
 
-// Mock Injection for Dev Preview
-if (new URLSearchParams(window.location.search).has('mock')) {
-    import('./dev-mocks.js').then(() => {
-        console.log('[SidePanel] Injected dev-mocks.js');
-    }).catch(e => console.error('[SidePanel] Failed to inject mock:', e));
-}
 
 import { analytics } from '../services/analytics.js';
 import { filterMessages } from '../shared/filter.js';
@@ -49,7 +43,7 @@ const searchInput = document.getElementById('searchInput');
 // Controls
 const filterBtn = document.getElementById('filterBtn');
 const copyAllBtn = document.getElementById('copyAllBtn');
-const selectAllBtn = document.getElementById('selectAllBtn');
+const selectAllActionBtn = document.getElementById('selectAllActionBtn');
 const selectAllIcon = document.getElementById('selectAllIcon');
 
 // Filter Sheet
@@ -58,12 +52,15 @@ const filterOverlay = document.getElementById('filterOverlay');
 const closeFilterBtn = document.getElementById('closeFilterBtn');
 const clearFilterBtn = document.getElementById('clearFilterBtn');
 const minLenInput = document.getElementById('minLenInput');
-const sortSelect = document.getElementById('sortSelect');
+// const sortSelect = document.getElementById('sortSelect'); // REMOVED
 
 // Menu
 const menuBtn = document.getElementById('menuBtn');
 const actionsMenu = document.getElementById('actionsMenu');
 const menuAuthAction = document.getElementById('menuAuthAction');
+const menuPrivacyBtn = document.getElementById('menuPrivacyBtn');
+const menuContactBtn = document.getElementById('menuContactBtn');
+const menuDonateBtn = document.getElementById('menuDonateBtn');
 
 // Scanning
 const scanProgressEl = document.getElementById('scanProgress');
@@ -77,8 +74,8 @@ const googleSignInBtn = document.getElementById('googleSignInBtn');
 
 // Settings / Stats (Features: Task RED, BLUE, GREEN, PURPLE)
 const analyticsToggle = document.getElementById('analyticsToggle');
-const showHiddenBtn = document.getElementById('showHiddenBtn');
-const showHiddenIcon = document.getElementById('showHiddenIcon');
+const visibilityActionBtn = document.getElementById('visibilityActionBtn');
+const visibilityIcon = document.getElementById('visibilityIcon');
 const statCharsVal = document.getElementById('statCharsVal');
 const statTokensVal = document.getElementById('statTokensVal');
 
@@ -122,19 +119,82 @@ menuAuthAction.addEventListener('click', () => {
 
 // --- UI Logic ---
 
-// Sheet Logic
-function openSheet() {
-    filterSheet.classList.add('open');
-    filterOverlay.classList.add('open');
+// Sheet Logic (Generic)
+let currentOpenSheet = null;
+
+function openSheet(sheetId) {
+    const sheet = document.getElementById(sheetId);
+    if (!sheet) return;
+    
+    currentOpenSheet = sheet;
+    sheet.classList.add('open');
+    filterOverlay.classList.add('open'); // Use generic overlay
+    actionsMenu.classList.remove('open'); // Close menu if open
 }
+
 function closeSheet() {
+    if (currentOpenSheet) {
+        currentOpenSheet.classList.remove('open');
+        currentOpenSheet = null;
+    }
+    // Also close filterSheet specifically just in case (legacy ref)
     filterSheet.classList.remove('open');
+    
+    // Close other specific sheets if they were manually managed? 
+    document.querySelectorAll('.bottom-sheet.open').forEach(s => s.classList.remove('open'));
+    
     filterOverlay.classList.remove('open');
 }
 
-filterBtn.addEventListener('click', openSheet);
+filterBtn.addEventListener('click', () => openSheet('filterSheet'));
 closeFilterBtn.addEventListener('click', closeSheet);
 filterOverlay.addEventListener('click', closeSheet);
+
+// New Menu Actions
+menuPrivacyBtn?.addEventListener('click', () => {
+    openSheet('privacySheet');
+    loadPrivacyContent();
+});
+document.getElementById('closePrivacyBtn')?.addEventListener('click', closeSheet);
+
+menuContactBtn?.addEventListener('click', () => openSheet('contactSheet'));
+document.getElementById('closeContactBtn')?.addEventListener('click', closeSheet);
+
+menuDonateBtn?.addEventListener('click', () => openSheet('donateSheet'));
+document.getElementById('closeDonateBtn')?.addEventListener('click', closeSheet);
+
+
+// Privacy Loader
+async function loadPrivacyContent() {
+    const contentEl = document.getElementById('privacyContent');
+    if (!contentEl || contentEl.dataset.loaded) return;
+    
+    try {
+        const response = await fetch('../../PRIVACY.md'); 
+        // Try relative path up two levels if serving from src/ui, 
+        // OR just try root relative if http-server is at root.
+        // http-server root is ./, file is at ./PRIVACY.md. 
+        // Browser URL is src/ui/sidepanel.html. 
+        // So fetch needs "../../PRIVACY.md".
+        
+        if (!response.ok) throw new Error('Not found');
+        const text = await response.text();
+        
+        // Simple Markdown Parser
+        const html = text
+            .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+            .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+            .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+            .replace(/\*\*(.*)\*\*/gim, '<b>$1</b>')
+            .replace(/\n$/gim, '<br />')
+            .replace(/\n\n/gim, '<p></p>');
+
+        contentEl.innerHTML = html;
+        contentEl.dataset.loaded = 'true';
+    } catch (e) {
+        contentEl.innerHTML = '<p>Could not load privacy policy. Please check the repo.</p>';
+    }
+}
 
 // Clear Filter
 clearFilterBtn.addEventListener('click', () => {
@@ -145,10 +205,45 @@ clearFilterBtn.addEventListener('click', () => {
     // Reset Inputs
     searchInput.value = '';
     minLenInput.value = 0;
-    sortSelect.value = 'original';
+    // reset sort state to 'original'
+    appState.filter.sort = 'original';
+    updateSortUI(); // Update icon helper
     
     updateUI();
 });
+
+// Sort Toggle Logic
+// Cycle: original -> lengthDesc -> lengthAsc -> original
+const sortToggleBtn = document.getElementById('sortToggleBtn');
+const sortIcon = document.getElementById('sortIcon');
+
+const SORT_STATES = ['original', 'lengthDesc', 'lengthAsc'];
+const SORT_ICONS = {
+    'original': 'icon-arrow-indeterminate',
+    'lengthDesc': 'icon-arrow-down',
+    'lengthAsc': 'icon-arrow-up'
+};
+const SORT_TITLES = {
+    'original': 'Sort: Original',
+    'lengthDesc': 'Sort: Longest First',
+    'lengthAsc': 'Sort: Shortest First'
+};
+
+sortToggleBtn?.addEventListener('click', () => {
+    const currentIndex = SORT_STATES.indexOf(appState.filter.sort);
+    const nextIndex = (currentIndex + 1) % SORT_STATES.length;
+    appState.filter.sort = SORT_STATES[nextIndex];
+    
+    updateSortUI();
+    updateUI();
+});
+
+function updateSortUI() {
+    if (!sortIcon || !sortToggleBtn) return;
+    const mode = appState.filter.sort;
+    sortIcon.className = 'svg-icon ' + SORT_ICONS[mode];
+    sortToggleBtn.title = SORT_TITLES[mode];
+}
 
 // Menu Logic
 menuBtn.addEventListener('click', (e) => {
@@ -159,6 +254,43 @@ document.addEventListener('click', () => {
     actionsMenu.classList.remove('open');
 });
 
+// Author Toggle Logic (Segmented Control)
+const authorToggleGroup = document.getElementById('authorToggleGroup');
+const authorBtns = authorToggleGroup ? authorToggleGroup.querySelectorAll('.segment-btn') : [];
+const glidingPill = authorToggleGroup ? authorToggleGroup.querySelector('.gliding-pill') : null;
+
+function updateAuthorToggleUI() {
+    if (!authorBtns.length || !glidingPill) return;
+    
+    const currentVal = appState.filter.author;
+    
+    authorBtns.forEach(btn => {
+        if (btn.dataset.value === currentVal) {
+            btn.classList.add('active');
+            // Move Pill
+            // Since we added gap, we must rely on offsetLeft from the parent
+            // But offsetLeft is relative to the offsetParent (the group, which has position:relative).
+            glidingPill.style.left = `${btn.offsetLeft}px`;
+            glidingPill.style.width = `${btn.offsetWidth}px`;
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+}
+
+if (authorToggleGroup) {
+    authorBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            appState.filter.author = btn.dataset.value;
+            updateAuthorToggleUI();
+            updateUI(); // Re-filter messages
+        });
+    });
+    // Init
+    // Wait for layout? 
+    setTimeout(updateAuthorToggleUI, 100); 
+}
+
 
 // --- Core Event Listeners ---
 
@@ -166,11 +298,10 @@ document.addEventListener('click', () => {
 
 function initExtension() {
     if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.tabs) {
-        // Retry for dev mode injection (race condition with dev-preview)
-        console.log('[SidePanel] Waiting for chrome injection...');
-        setTimeout(initExtension, 50);
+        console.warn('[SidePanel] Chrome API not available (running in browser mode?)');
         return;
     }
+
 
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (request.action === 'MESSAGES_UPDATED') {
@@ -300,27 +431,28 @@ quickRefreshBtn?.addEventListener('click', () => {
 // --- Feature Logic (Copy, Select, Hide) ---
 
 // Toggle Hide/Show
+// SVG Class Constants (Task PURPLE)
+const CLS_VISIBLE = 'icon-visibility-on';
+const CLS_HIDDEN = 'icon-visibility-off'; // Use 'off' icon when state is showing (click to hide)? 
+// Logic: 
+// showHidden = true (Users sees hidden msgs) -> Button should say "Hide" -> Icon Eye Crossed (off)
+// showHidden = false (Hidden msgs invisible) -> Button says "Show" -> Icon Eye (on)
+
+const CLS_CHECKBOX_CHECKED = 'icon-check-full';
+const CLS_CHECKBOX_EMPTY = 'icon-check-empty';
+const CLS_CHECKBOX_INDETERMINATE = 'icon-check-indeterminate';
+
+const CLS_COPY_SMALL = 'icon-copy small';
+
+
 // Toggle Hide/Show Button (Task PURPLE)
-// SVG Paths (Material Symbols 24px)
-// SVG Paths (User Provided)
-const SVG_VISIBLE = '<g transform="translate(0.295 0.195)"><path d="M43.679-795.33a4.3,4.3,0,0,0,3.16-1.3,4.3,4.3,0,0,0,1.3-3.16,4.3,4.3,0,0,0-1.3-3.16,4.3,4.3,0,0,0-3.16-1.3,4.3,4.3,0,0,0-3.16,1.3,4.3,4.3,0,0,0-1.3,3.16,4.3,4.3,0,0,0,1.3,3.16A4.3,4.3,0,0,0,43.679-795.33Zm0-1.909a2.463,2.463,0,0,1-1.808-.744,2.459,2.459,0,0,1-.745-1.807,2.463,2.463,0,0,1,.744-1.808,2.459,2.459,0,0,1,1.807-.745,2.463,2.463,0,0,1,1.808.744,2.459,2.459,0,0,1,.745,1.807,2.464,2.464,0,0,1-.744,1.808A2.459,2.459,0,0,1,43.68-797.238Zm0,5.067a11.562,11.562,0,0,1-6.708-2.079,11.835,11.835,0,0,1-4.381-5.54,11.834,11.834,0,0,1,4.381-5.54,11.561,11.561,0,0,1,6.708-2.079,11.561,11.561,0,0,1,6.708,2.079,11.834,11.834,0,0,1,4.381,5.54,11.835,11.835,0,0,1-4.381,5.54A11.562,11.562,0,0,1,43.679-792.172Z" transform="translate(-32.59 811.41)" fill="currentColor"/></g>';
-const SVG_HIDDEN = '<g transform="translate(0.295 0.195)"><path d="M52.472-830.373l-4.3-4.256a11.92,11.92,0,0,1-1.853.443,12.739,12.739,0,0,1-1.969.148,12.1,12.1,0,0,1-7.167-2.232,12.809,12.809,0,0,1-4.591-5.847,12.727,12.727,0,0,1,1.393-2.6,12.987,12.987,0,0,1,1.912-2.189l-2.866-2.906,1.541-1.541,19.436,19.443Zm-8.124-7.013a4.732,4.732,0,0,0,.482-.023,2.884,2.884,0,0,0,.482-.1l-5.589-5.576a3.021,3.021,0,0,0-.086.485q-.02.228-.02.479A4.561,4.561,0,0,0,41-838.766,4.562,4.562,0,0,0,44.348-837.386Zm7.875.542-3.507-3.487a4.974,4.974,0,0,0,.267-.866,4.415,4.415,0,0,0,.1-.92,4.562,4.562,0,0,0-1.38-3.351,4.562,4.562,0,0,0-3.351-1.38,4.293,4.293,0,0,0-.92.1,4.426,4.426,0,0,0-.866.287L39.725-849.3a11.528,11.528,0,0,1,2.232-.67,12.57,12.57,0,0,1,2.39-.223,12.118,12.118,0,0,1,7.16,2.226,12.8,12.8,0,0,1,4.6,5.853,12.444,12.444,0,0,1-1.6,2.915A12.107,12.107,0,0,1,52.223-836.844Zm-5.308-5.288-2.575-2.575a2,2,0,0,1,1.105.093,2.365,2.365,0,0,1,.866.591,2.36,2.36,0,0,1,.527.9A2.046,2.046,0,0,1,46.915-842.132Z" transform="translate(-32.59 852.35)" fill="currentColor"/></g>';
-
-const SVG_CHECKBOX_CHECKED = '<path d="M19 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2V5c0-1.1-.89-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>';
-const SVG_CHECKBOX_EMPTY = '<path d="M19 5v14H5V5h14m0-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/>';
-const SVG_CHECKBOX_INDETERMINATE = '<path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10H7v-2h10v2z"/>'; // Standard Dash
-
-// Icon Copy (Small)
-const SVG_COPY_SMALL = '<g transform="translate(0.121 0.195)"><path d="M113.991-874.541a2.552,2.552,0,0,1-1.873-.774,2.551,2.551,0,0,1-.774-1.873v-13.8a2.551,2.551,0,0,1,.774-1.873,2.551,2.551,0,0,1,1.873-.774h10.3a2.551,2.551,0,0,1,1.873.774,2.551,2.551,0,0,1,.774,1.873v13.8a2.551,2.551,0,0,1-.774,1.873,2.552,2.552,0,0,1-1.873.774Zm0-2.647h10.3v-13.8h-10.3Zm-4.974,7.621a2.551,2.551,0,0,1-1.873-.774,2.551,2.551,0,0,1-.774-1.873v-16.442h2.647v16.442h12.952v2.647Zm4.974-7.621v0Z" transform="translate(-104.364 893.63)" fill="currentColor"/></g>';
-
-// Toggle Hide/Show Button (Task PURPLE)
-showHiddenBtn.addEventListener('click', () => {
+visibilityActionBtn.addEventListener('click', () => {
     appState.showHidden = !appState.showHidden;
     updateUI(); 
 });
 
 // Select All Toggle
-selectAllBtn?.addEventListener('click', () => {
+selectAllActionBtn?.addEventListener('click', () => {
     const visibleMessages = getFilteredMessages();
     const allSelected = visibleMessages.every(m => appState.selectedIds.has(m.id)) && visibleMessages.length > 0;
     
@@ -350,14 +482,17 @@ copyAllBtn.addEventListener('click', () => {
     analytics.trackEvent('copy_selected', { count: selectedMsgs.length });
     
     // Visual Feedback (Icon Checkmark)
-    const originalIconContent = copyAllBtn.innerHTML;
-    copyAllBtn.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">${SVG_CHECKBOX_CHECKED}</svg>`;
-    copyAllBtn.style.color = 'var(--md-sys-color-primary)'; // Green/Primary color for success
-    
-    setTimeout(() => {
-        copyAllBtn.innerHTML = originalIconContent;
-        copyAllBtn.style.color = '';
-    }, 1500);
+    const iconDiv = copyAllBtn.querySelector('.svg-icon');
+    if (iconDiv) {
+        const originalClass = iconDiv.className;
+        iconDiv.className = 'svg-icon ' + CLS_CHECKBOX_CHECKED;
+        copyAllBtn.style.color = 'var(--md-sys-color-primary)'; 
+        
+        setTimeout(() => {
+            iconDiv.className = originalClass;
+            copyAllBtn.style.color = '';
+        }, 1500);
+    }
 });
 
 function updateCopyButtonLabel() {
@@ -380,8 +515,22 @@ function updateCopyButtonLabel() {
 
 // Filter Inputs
 searchInput.addEventListener('input', (e) => { appState.filter.search = e.target.value; updateUI(); });
-minLenInput.addEventListener('input', (e) => { appState.filter.minLen = e.target.value; updateUI(); });
-sortSelect.addEventListener('change', (e) => { appState.filter.sort = e.target.value; updateUI(); });
+
+minLenInput.addEventListener('input', (e) => { 
+    // Enforce numbers (positive integers)
+    let val = parseInt(e.target.value);
+    if (isNaN(val) || val < 0) val = 0;
+    
+    // Update State
+    appState.filter.minLen = val;
+    
+    // Optional: Update input value if it was invalid characters (though type="number" blocks most)
+    // e.target.value = val; 
+    
+    updateUI(); 
+});
+
+// REMOVED: sortSelect listener replaced by sortToggleBtn logic
 
 
 function getFilteredMessages() {
@@ -479,32 +628,34 @@ function updateUI() {
         clearFilterBtn.style.visibility = 'hidden';
     }
     const hiddenCount = appState.hiddenIds.size;
-    const hiddenCountEl = document.getElementById('hiddenCount');
+    // const hiddenCountEl = document.getElementById('hiddenCount'); // REMOVED
     
     // Fix: Ensure viewBox matches the paths (24x24)
-    if (showHiddenIcon && showHiddenIcon.getAttribute('viewBox') !== '0 0 24 24') {
-        showHiddenIcon.setAttribute('viewBox', '0 0 24 24');
+    if (visibilityIcon && visibilityIcon.getAttribute('viewBox') !== '0 0 24 24') {
+        visibilityIcon.setAttribute('viewBox', '0 0 24 24');
     }
     
     // 1. Show/Hide Button Visibility & State
-    showHiddenBtn.style.display = 'flex'; // Always visible
-    hiddenCountEl.textContent = hiddenCount;
+    // showHiddenBtn reference replaced by visibilityActionBtn in toolbar
+    visibilityActionBtn.style.display = 'flex'; // Always visible
+    // hiddenCountEl.textContent = hiddenCount; // REMOVED
 
     if (hiddenCount > 0) {
         if (appState.showHidden) {
-            showHiddenBtn.classList.add('active');
-            showHiddenBtn.title = `Hide Hidden Messages (${hiddenCount})`;
-            showHiddenIcon.innerHTML = SVG_HIDDEN; 
+            visibilityActionBtn.classList.add('active');
+            visibilityActionBtn.title = `Hide Hidden Messages (${hiddenCount})`;
+            visibilityIcon.className = 'svg-icon ' + CLS_HIDDEN; 
         } else {
-            showHiddenBtn.classList.remove('active');
-            showHiddenBtn.title = `Show Hidden Messages (${hiddenCount})`;
-            showHiddenIcon.innerHTML = SVG_VISIBLE; 
+            visibilityActionBtn.classList.remove('active');
+            visibilityActionBtn.title = `Show Hidden Messages (${hiddenCount})`;
+            visibilityIcon.className = 'svg-icon ' + CLS_VISIBLE;
         }
     } else {
         // Default state when 0
-        showHiddenBtn.classList.remove('active');
-        showHiddenBtn.title = `Show Hidden Messages (0)`;
-        showHiddenIcon.innerHTML = SVG_VISIBLE; 
+        // Default state when 0
+        visibilityActionBtn.classList.remove('active');
+        visibilityActionBtn.title = `Show Hidden Messages (0)`;
+        visibilityIcon.className = 'svg-icon ' + CLS_VISIBLE;
         
         if(appState.showHidden) {
              appState.showHidden = false; 
@@ -553,14 +704,14 @@ function updateUI() {
         }
 
         if (totalVisible > 0 && selectedCount === totalVisible) {
-             selectAllIcon.innerHTML = SVG_CHECKBOX_CHECKED;
-             selectAllBtn.title = 'Deselect All';
+             selectAllIcon.className = 'svg-icon ' + CLS_CHECKBOX_CHECKED;
+             selectAllActionBtn.title = 'Deselect All';
         } else if (selectedCount > 0 && selectedCount < totalVisible) {
-             selectAllIcon.innerHTML = SVG_CHECKBOX_INDETERMINATE;
-             selectAllBtn.title = 'Deselect All';
+             selectAllIcon.className = 'svg-icon ' + CLS_CHECKBOX_INDETERMINATE;
+             selectAllActionBtn.title = 'Deselect All';
         } else {
-             selectAllIcon.innerHTML = SVG_CHECKBOX_EMPTY;
-             selectAllBtn.title = 'Select All';
+             selectAllIcon.className = 'svg-icon ' + CLS_CHECKBOX_EMPTY;
+             selectAllActionBtn.title = 'Select All';
         }
     }
 
@@ -595,10 +746,8 @@ function updateUI() {
         const finalHtml = safeTextWithHighlight(isLong ? previewText : msg.text, searchTerm);
 
         // Icon Logic:
-        // If hidden: Show "Unhide" (Eye) -> SVG_VISIBLE
-        // If visible: Show "Hide" (Crossed Eye) -> SVG_HIDDEN
-        // User requested: "icons here to updated with the material ones"
-        const toggleIcon = isHidden ? SVG_VISIBLE : SVG_HIDDEN;
+        // Use classes
+        const toggleIconClass = isHidden ? CLS_VISIBLE : CLS_HIDDEN;
         const toggleTitle = isHidden ? 'Unhide' : 'Hide';
 
         card.innerHTML = `
@@ -609,10 +758,10 @@ function updateUI() {
                 </div>
                 <div class="card-header-actions">
                      <button class="hide-btn" data-id="${msg.id}" title="${toggleTitle}">
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">${toggleIcon}</svg>
+                        <div class="svg-icon ${toggleIconClass}"></div>
                      </button>
                      <button class="copy-btn-small icon-only" data-id="${msg.id}" title="Copy">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">${SVG_COPY_SMALL}</svg>
+                        <div class="svg-icon ${CLS_COPY_SMALL}"></div>
                      </button>
                 </div>
             </div>
@@ -648,14 +797,17 @@ function updateUI() {
             analytics.trackEvent('copy_single', { charCount: msg.text.length });
             
             // Visual Feedback (Checkmark)
-            const originalIcon = btn.innerHTML;
-            btn.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">${SVG_CHECKBOX_CHECKED}</svg>`;
-            btn.style.color = 'var(--md-sys-color-primary)';
-            
-            setTimeout(() => {
-                btn.innerHTML = originalIcon;
-                btn.style.color = '';
-            }, 1000);
+            const iconDiv = btn.querySelector('.svg-icon');
+            if (iconDiv) {
+                const originalClass = iconDiv.className;
+                iconDiv.className = 'svg-icon ' + CLS_CHECKBOX_CHECKED;
+                btn.style.color = 'var(--md-sys-color-primary)';
+                
+                setTimeout(() => {
+                    iconDiv.className = originalClass;
+                    btn.style.color = '';
+                }, 1000);
+            }
         });
         
         // 3. Select Checkbox

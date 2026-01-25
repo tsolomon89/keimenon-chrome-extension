@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Keimenon Lite</title>
-  <link rel="icon" href="../../icons/icon16.png">
+  <link rel="icon" href="../../favicon/keimenon-favicon-16.png">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -12,123 +12,55 @@
     <div class="header-group" id="headerGroup">
         <div class="scan-line"></div>
         
-        <!-- Row 1: Title & Status -->
-        <div class="top-bar">
-          <div id="statusBadge" class="status-badge">Ready</div>
-          <div style="display: flex; align-items: center; gap: 8px;">
-              <div id="versionDisplay" class="version-label">v...</div>
-              <!-- Menu (Moved from controls) -->
-              <button id="menuBtn" class="icon-btn" title="More Options" style="width: 32px; height: 32px; background: transparent; border: none;">⋮</button>
-          </div>
-        </div>
 
         <!-- Row 2: Control Icons -->
         <div class="controls-row">
+             <div id="statusBadge" class="status-badge">Ready</div>
+             
              <!-- Scan -->
-             <button id="quickScanBtn" class="icon-btn" title="Scan Full Chat" style="display: none;">
-                 <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                    <path d="M72.59-921.828v-5.582h5.582v2.345H74.934v3.238Zm19.51,0v-3.238H88.862v-2.345h5.582v5.582ZM72.59-903.41v-5.582h2.344v3.238h3.238v2.344Zm16.272,0v-2.344H92.1v-3.238h2.344v5.582Zm-10.51-5.762H88.683v-12.477H78.352Zm0,2.441a2.348,2.348,0,0,1-1.721-.72,2.348,2.348,0,0,1-.72-1.721v-12.477a2.348,2.348,0,0,1,.72-1.721,2.348,2.348,0,0,1,1.721-.72H88.683a2.348,2.348,0,0,1,1.721.72,2.348,2.348,0,0,1,.72,1.721v12.477a2.348,2.348,0,0,1-.72,1.721,2.348,2.348,0,0,1-1.721.72Zm1.909-10.786h6.514v-2.222H80.26Zm0,3.219h6.514v-2.222H80.26Zm0,3.218h6.514V-913.3H80.26Zm-1.909,1.909v0Z" transform="translate(-71.633 927.41)"/>
-                 </svg>
+             <button id="quickScanBtn" class="icon-btn hidden" title="Scan Full Chat">
+                 <div class="svg-icon icon-scan"></div>
              </button>
 
              <!-- Refresh -->
              <button id="quickRefreshBtn" class="icon-btn" title="Refresh Page">
-                 <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                    <path d="M160.91-788.13a9.648,9.648,0,0,1-7.089-2.911,9.648,9.648,0,0,1-2.911-7.089,9.648,9.648,0,0,1,2.911-7.089,9.648,9.648,0,0,1,7.089-2.911,9.918,9.918,0,0,1,4.136.891,9.423,9.423,0,0,1,3.368,2.557v-3.447h2.555v8.89h-8.9v-2.548h5.076a7.119,7.119,0,0,0-2.634-2.616,7.108,7.108,0,0,0-3.6-.953,6.969,6.969,0,0,0-5.119,2.108,6.969,6.969,0,0,0-2.108,5.119,6.97,6.97,0,0,0,2.108,5.119,6.969,6.969,0,0,0,5.119,2.107,7.045,7.045,0,0,0,4.167-1.319,7.071,7.071,0,0,0,2.633-3.47h2.9a9.887,9.887,0,0,1-3.554,5.447A9.687,9.687,0,0,1,160.91-788.13Z" transform="translate(-148.952 810.13)"/>
-                 </svg>
-             </button>
-
+                 <div class="svg-icon icon-refresh"></div>
              </button>
              
              <!-- Separator -->
              <div class="separator-vertical"></div>
 
+             <div style="flex: 1;"></div>
+
              <!-- 3-Way Author Toggle (Segmented Button) -->
              <div class="segmented-btn-group" id="authorToggleGroup">
                  <div class="gliding-pill"></div>
                  <button class="segment-btn active" data-value="user" title="Human Only">
-                     <!-- Icon: Man -->
-                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                       <g fill="currentColor">
-                         <path d="M-1255.29-149.866a11 11 0 0 1-5.844-5.844A10.7 10.7 0 0 1-1262-160a10.7 10.7 0 0 1 .866-4.29 11 11 0 0 1 5.844-5.844A10.7 10.7 0 0 1-1251-171a10.7 10.7 0 0 1 4.29.866 11 11 0 0 1 5.844 5.844A10.7 10.7 0 0 1-1240-160a10.7 10.7 0 0 1-.866 4.29 11 11 0 0 1-5.844 5.844 10.7 10.7 0 0 1-4.29.866 10.7 10.7 0 0 1-4.29-.866m-.702-12.675a10.75 10.75 0 0 1-3.808 2.376v.165a8.5 8.5 0 0 0 2.558 6.242A8.5 8.5 0 0 0-1251-151.2a8.5 8.5 0 0 0 6.242-2.558A8.5 8.5 0 0 0-1242.2-160a10 10 0 0 0-.083-1.279 5.3 5.3 0 0 0-.3-1.2 10 10 0 0 1-1.155.206 10 10 0 0 1-1.211.069 10.8 10.8 0 0 1-4.73-1.073 11 11 0 0 1-3.8-3 10.9 10.9 0 0 1-2.513 3.736m6.492 2.265a1.5 1.5 0 1 1 1.5 1.5 1.5 1.5 0 0 1-1.5-1.5m-6 0a1.5 1.5 0 1 1 1.5 1.5 1.5 1.5 0 0 1-1.5-1.5" transform="translate(1306 199) translate(-43 -27)"/>
-                         <path d="M-1254-156h6v1.5h-6z" transform="translate(1306 199) translate(-43 -27)"/>
-                         <path d="M-1254-156h6v1.5h-6Z" transform="translate(1306 199) translate(-43 -27)"/>
-                       </g>
-                       <path fill="none" d="M-1306-199h24v24h-24z" transform="translate(1306 199)"/>
-                     </svg>
+                     <div class="svg-icon icon-user large"></div>
                  </button>
                  <button class="segment-btn" data-value="both" title="Both">
-                     <!-- Icon: Man + Machine -->
-                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                       <defs>
-                         <clipPath id="mm-clip-a">
-                           <path fill="#fff" stroke="#707070" d="M-1201-174h12v20h-12z"/>
-                         </clipPath>
-                         <clipPath id="mm-clip-b">
-                           <path fill="#fff" stroke="#707070" d="M0 0h10.909v20H0z"/>
-                         </clipPath>
-                       </defs>
-                       <g transform="translate(1213 176)" clip-path="url(#mm-clip-a)">
-                         <g fill="currentColor">
-                           <path d="M-1209.727-160.316a3.22 3.22 0 0 1-2.318-.921 3 3 0 0 1-.955-2.237 3 3 0 0 1 .955-2.237 3.22 3.22 0 0 1 2.318-.921v-2.105a2 2 0 0 1 .641-1.487 2.14 2.14 0 0 1 1.541-.618h3.273a3 3 0 0 1 .955-2.237A3.22 3.22 0 0 1-1201-174a3.22 3.22 0 0 1 2.318.921 3 3 0 0 1 .955 2.237h3.273a2.14 2.14 0 0 1 1.541.618 2 2 0 0 1 .641 1.487v2.105a3.22 3.22 0 0 1 2.318.921 3 3 0 0 1 .954 2.237 3 3 0 0 1-.955 2.237 3.22 3.22 0 0 1-2.318.921v4.211a2 2 0 0 1-.641 1.487 2.14 2.14 0 0 1-1.541.618h-13.09a2.14 2.14 0 0 1-1.541-.618 2 2 0 0 1-.641-1.487Zm2.182 4.211h13.09v-12.632h-13.09Zm6.545-6.316"/>
-                           <g transform="translate(-1206 -166.276)">
-                             <circle cx="2" cy="2" r="2"/>
-                             <path d="M2 1a1 1 0 1 0 1 1 1 1 0 0 0-1-1m0-1a2 2 0 1 1-2 2 2 2 0 0 1 2-2"/>
-                             <circle cx="2" cy="2" r="2" transform="translate(6)"/>
-                             <path d="M8 1a1 1 0 1 0 1 1 1 1 0 0 0-1-1m0-1a2 2 0 1 1-2 2 2 2 0 0 1 2-2"/>
-                           </g>
-                         </g>
-                       </g>
-                       <g transform="translate(1218 151)">
-                         <g transform="translate(-1218 -149)" clip-path="url(#mm-clip-b)">
-                           <path d="M6.1 19.212a9.98 9.98 0 0 1-5.313-5.313 10.05 10.05 0 0 1 0-7.8A10 10 0 0 1 6.1.787a10.05 10.05 0 0 1 7.8 0 10 10 0 0 1 5.313 5.312 10.05 10.05 0 0 1 0 7.8 9.98 9.98 0 0 1-5.313 5.313 10.05 10.05 0 0 1-7.8 0M5.462 7.687A9.8 9.8 0 0 1 2 9.85V10a8 8 0 1 0 16 0 9 9 0 0 0-.075-1.163 5 5 0 0 0-.275-1.087A9 9 0 0 1 15.5 8a9.8 9.8 0 0 1-4.3-.976 10 10 0 0 1-3.45-2.725 9.85 9.85 0 0 1-2.288 3.388m6.038-2.75a7.7 7.7 0 0 0 4 1.062 6 6 0 0 0 .656-.035 8.9 8.9 0 0 1-3.881-.817 11.2 11.2 0 0 1-2.012-1.1 8.4 8.4 0 0 0 1.237.89m4.985.987.365-.05-.021-.034a2.5 2.5 0 0 1-.344.084" fill="currentColor"/>
-                         </g>
-                         <circle cx="1.5" cy="1.5" r="1.5" transform="translate(-1212.5 -140.776)" fill="currentColor"/>
-                         <path fill="currentColor" d="M-1211-135h8v1.5h-8z"/>
-                         <path d="M-1211-135h8v1.5h-8Z" fill="currentColor"/>
-                       </g>
-                       <path fill="currentColor" d="M10 2h2v20h-2z"/>
-                       <path d="M10 2h2v20h-2Z" fill="currentColor"/>
-                       <path fill="none" d="M0 0h24v24H0z"/>
-                     </svg>
+                     <div class="svg-icon icon-both large"></div>
                  </button>
                  <button class="segment-btn" data-value="assistant" title="AI Only">
-                     <!-- Icon: Machine -->
-                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                       <g fill="currentColor">
-                         <path d="M-1209.727-172.316a3.22 3.22 0 0 1-2.318-.921 3 3 0 0 1-.955-2.237 3 3 0 0 1 .955-2.237 3.22 3.22 0 0 1 2.318-.921v-2.105a2 2 0 0 1 .641-1.487 2.14 2.14 0 0 1 1.541-.618h3.273a3 3 0 0 1 .955-2.237A3.22 3.22 0 0 1-1201-186a3.22 3.22 0 0 1 2.318.921 3 3 0 0 1 .955 2.237h3.273a2.14 2.14 0 0 1 1.541.618 2 2 0 0 1 .641 1.487v2.105a3.22 3.22 0 0 1 2.318.921 3 3 0 0 1 .954 2.237 3 3 0 0 1-.955 2.237 3.22 3.22 0 0 1-2.318.921v4.211a2 2 0 0 1-.641 1.487 2.14 2.14 0 0 1-1.541.618h-13.09a2.14 2.14 0 0 1-1.541-.618 2 2 0 0 1-.641-1.487Zm2.182 4.211h13.09v-12.632h-13.09Zm6.545-6.316" transform="translate(1239 216) translate(-26 -28)"/>
-                         <g transform="translate(1239 216) translate(-26 -28) translate(-1206 -178.276)">
-                           <circle cx="2" cy="2" r="2"/>
-                           <path d="M2 1a1 1 0 1 0 1 1 1 1 0 0 0-1-1m0-1a2 2 0 1 1-2 2 2 2 0 0 1 2-2"/>
-                           <circle cx="2" cy="2" r="2" transform="translate(6)"/>
-                           <path d="M8 1a1 1 0 1 0 1 1 1 1 0 0 0-1-1m0-1a2 2 0 1 1-2 2 2 2 0 0 1 2-2"/>
-                         </g>
-                         <path d="M-1204-172h6v1.5h-6z" transform="translate(1239 216) translate(-26 -28)"/>
-                         <path d="M-1204-172h6v1.5h-6Z" transform="translate(1239 216) translate(-26 -28)"/>
-                       </g>
-                       <path fill="none" d="M-1239-216h24v24h-24z" transform="translate(1239 216)"/>
-                     </svg>
+                     <div class="svg-icon icon-bot large"></div>
                  </button>
              </div>
 
              <div style="flex: 1;"></div>
+             
+             <!-- Separator -->
+             <div class="separator-vertical"></div>
 
              <!-- Copy -->
              <button id="copyAllBtn" class="icon-btn" title="Copy Selected">
-                 <svg viewBox="0 0 24 25" width="20" height="20" fill="currentColor">
-                     <path d="M113.991-874.541a2.552,2.552,0,0,1-1.873-.774,2.551,2.551,0,0,1-.774-1.873v-13.8a2.551,2.551,0,0,1,.774-1.873,2.551,2.551,0,0,1,1.873-.774h10.3a2.551,2.551,0,0,1,1.873.774,2.551,2.551,0,0,1,.774,1.873v13.8a2.551,2.551,0,0,1-.774,1.873,2.552,2.552,0,0,1-1.873.774Zm0-2.647h10.3v-13.8h-10.3Zm-4.974,7.621a2.551,2.551,0,0,1-1.873-.774,2.551,2.551,0,0,1-.774-1.873v-16.442h2.647v16.442h12.952v2.647Zm4.974-7.621v0Z" transform="translate(-104.364 893.63)"/>
-                 </svg>
+                 <div class="svg-icon icon-copy"></div>
              </button>
 
-             <!-- Filters -->
-             <button id="filterBtn" class="icon-btn" title="Filters">
-                 <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                     <path d="M124.188-825.41v-7.407h2.617v2.4h9.581v2.617h-9.581v2.4Zm-9.688-2.4v-2.617h7.407v2.617Zm4.79-4.9v-2.4H114.5v-2.61h4.79v-2.4h2.617v7.4Zm4.9-2.4v-2.61h12.2v2.61Zm4.79-4.9v-7.407H131.6v2.4h4.79v2.617H131.6v2.4ZM114.5-842.4v-2.617h12.2v2.617Z" transform="translate(-113.621 848.215)"/>
-                 </svg>
+             <!-- Menu Key -->
+             <button id="menuBtn" class="icon-btn" title="More Options">
+                <div class="svg-icon icon-more"></div>
              </button>
-
-
-        </div>
+         </div>
 
         <div id="scanProgress" class="scan-progress" style="display: none;">
             <div class="scan-progress-text">
@@ -138,44 +70,46 @@
             <button id="stopScanBtn" class="action-btn-small">Stop</button>
         </div>
 
-        <!-- Row 3: Search -->
-        <div class="search-row">
-          <fieldset class="stat-field">
-              <legend class="stat-legend">Search</legend>
-              <input type="text" id="searchInput" class="search-input" placeholder="Search prompts..." style="border:none; padding: 0; background: transparent; height: 100%;">
-          </fieldset>
+        <!-- Row 3: Search & Actions -->
+        <div class="search-row" style="display: flex; gap: 8px; align-items: center;">
+            <!-- Select All Action -->
+            <button id="selectAllActionBtn" class="icon-btn" title="Select All">
+                <div id="selectAllIcon" class="svg-icon icon-check-empty"></div>
+            </button>
+
+            <fieldset class="text-field" style="flex: 1;">
+                <legend class="text-field-legend">Search</legend>
+                <div class="svg-icon icon-search search-icon"></div>
+                <input type="text" id="searchInput" class="search-input" placeholder="Search prompts..." style="border:none; padding: 0; background: transparent; height: 100%;">
+            </fieldset>
+
+            <!-- Filter Action -->
+            <button id="filterBtn" class="icon-btn" title="Filters">
+                 <div class="svg-icon icon-filter"></div>
+            </button>
+
+            <!-- Visibility Action -->
+            <button id="visibilityActionBtn" class="icon-btn" title="Toggle Hidden Messages">
+                <div id="visibilityIcon" class="svg-icon icon-visibility-on"></div>
+            </button>
         </div>
 
-        <!-- Row 4: Stats Grid -->
+        <!-- Row 4: Stats Grid (Read Only) -->
         <div id="statsGrid" class="stats-grid">
-            <fieldset class="stat-field" title="Character Count">
-                <legend class="stat-legend">Characters</legend>
-                <span id="statCharsVal" class="stat-value">0 / 0 / 0</span>
-            </fieldset>
-            <fieldset class="stat-field" title="Token Count">
-                <legend class="stat-legend">Tokens</legend>
-                <span id="statTokensVal" class="stat-value">0 / 0 / 0</span>
-            </fieldset>
-            <!-- Selected Pill (now Select All Controller) -->
-            <!-- Selected Pill (now Select All Controller) -->
-            <fieldset class="stat-field clickable" id="selectAllBtn" title="Select/Deselect All">
-                <legend class="stat-legend">Selected</legend>
-                <div class="stat-content-row">
-                    <svg id="selectAllIcon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="margin-right: 6px;">
-                        <path d="M19 5v14H5V5h14m0-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/>
-                    </svg>
+            <!-- Selected Stat (Full Width) -->
+            <fieldset class="text-field" id="statSelected" title="Selected Count" style="grid-column: 1 / -1;">
+                <legend class="text-field-legend">Selected</legend>
+                <div class="text-field-content">
                     <span id="selectedCountValue" class="stat-value">0 / 0 / 0</span>
                 </div>
             </fieldset>
-             <!-- Hidden Toggle Pill -->
-            <fieldset class="stat-field clickable" id="showHiddenBtn" title="Toggle Hidden Messages">
-                 <legend class="stat-legend">Hidden</legend>
-                 <div class="stat-content-row">
-                     <svg id="showHiddenIcon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="margin-right: 6px;">
-                         <g transform="translate(0.295 0.195)"><path d="M43.679-795.33a4.3,4.3,0,0,0,3.16-1.3,4.3,4.3,0,0,0,1.3-3.16,4.3,4.3,0,0,0-1.3-3.16,4.3,4.3,0,0,0-3.16-1.3,4.3,4.3,0,0,0-3.16,1.3,4.3,4.3,0,0,0-1.3,3.16,4.3,4.3,0,0,0,1.3,3.16A4.3,4.3,0,0,0,43.679-795.33Zm0-1.909a2.463,2.463,0,0,1-1.808-.744,2.459,2.459,0,0,1-.745-1.807,2.463,2.463,0,0,1,.744-1.808,2.459,2.459,0,0,1,1.807-.745,2.463,2.463,0,0,1,1.808.744,2.459,2.459,0,0,1,.745,1.807,2.464,2.464,0,0,1-.744,1.808A2.459,2.459,0,0,1,43.68-797.238Zm0,5.067a11.562,11.562,0,0,1-6.708-2.079,11.835,11.835,0,0,1-4.381-5.54,11.834,11.834,0,0,1,4.381-5.54,11.561,11.561,0,0,1,6.708-2.079,11.561,11.561,0,0,1,6.708,2.079,11.834,11.834,0,0,1,4.381,5.54,11.835,11.835,0,0,1-4.381,5.54A11.562,11.562,0,0,1,43.679-792.172Z" transform="translate(-32.59 811.41)" fill="currentColor"/></g>
-                     </svg>
-                     <span id="hiddenCount" class="stat-value">0</span>
-                 </div>
+            <fieldset class="text-field" title="Character Count">
+                <legend class="text-field-legend">Characters</legend>
+                <span id="statCharsVal" class="stat-value">0 / 0 / 0</span>
+            </fieldset>
+            <fieldset class="text-field" title="Token Count">
+                <legend class="text-field-legend">Tokens</legend>
+                <span id="statTokensVal" class="stat-value">0 / 0 / 0</span>
             </fieldset>
         </div>
     </div>
@@ -183,35 +117,40 @@
     <!-- Actions Dropdown -->
     <div id="actionsMenu" class="dropdown-menu">
         <button class="menu-item" id="menuAuthAction">Sign Out</button>
-        <div style="border-top: 1px solid var(--md-sys-color-outline-variant); margin: 4px 0; opacity: 0.2;"></div>
+        <div class="menu-separator"></div>
         <label class="menu-item" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
             <input type="checkbox" id="analyticsToggle" checked> 
             <span style="flex: 1">Analytics</span>
         </label>
+        <div class="menu-separator"></div>
+        <button class="menu-item" id="menuPrivacyBtn">Privacy Policy</button>
+        <button class="menu-item" id="menuContactBtn">Contact</button>
+        <button class="menu-item" id="menuDonateBtn">Donate</button>
+        
+        <div class="menu-separator"></div>
+        <div id="versionDisplay" class="version-label" style="text-align: center; padding: 4px; opacity: 0.5;">v...</div>
     </div>
     
     <!-- Filter Sheet -->
-    <div id="filterOverlay" class="sheet-overlay"></div>
+    <div id="filterOverlay" class="overlay"></div>
     <div id="filterSheet" class="bottom-sheet">
         <div class="sheet-header">
             <button id="clearFilterBtn" class="action-btn-text" style="visibility: hidden;">Clear</button>
             <span class="sheet-title">Filters</span>
             <button id="closeFilterBtn" class="action-btn">Done</button>
         </div>
-        <div style="display: flex; flex-direction: column; gap: 16px;">
-            <label>
-                Minimum Character Length:
-                <input type="number" id="minLenInput" value="0" style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid var(--md-sys-color-outline); border-radius: 4px;">
-            </label>
-            
-            <div style="display: flex; gap: 8px; align-items: center;">
-                <span>Sort By:</span>
-                <select id="sortSelect" style="padding: 8px; flex: 1; border-radius: 4px;">
-                    <option value="original">Original Order</option>
-                    <option value="lengthDesc">Length (Longest First)</option>
-                    <option value="lengthAsc">Length (Shortest First)</option>
-                </select>
-            </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <!-- Min Length Input -->
+            <fieldset class="text-field" style="flex: 1;">
+                <legend class="text-field-legend">Min Length</legend>
+                <input type="number" id="minLenInput" value="0" min="0" 
+                       style="border:none; padding: 0; background: transparent; height: 100%; width: 100%; font-family: inherit;">
+            </fieldset>
+
+            <!-- Sort Toggle Button -->
+            <button id="sortToggleBtn" class="icon-btn" title="Sort Order: Original">
+                <div id="sortIcon" class="svg-icon icon-arrow-indeterminate"></div>
+            </button>
         </div>
     </div>
 
@@ -229,6 +168,58 @@
             Sign in with Google
         </button>
     </div>
+    <!-- Privacy Sheet -->
+    <div id="privacySheet" class="bottom-sheet">
+        <div class="sheet-header">
+            <div style="width: 36px;"></div> <!-- Spacer -->
+            <span class="sheet-title">Privacy Policy</span>
+            <button id="closePrivacyBtn" class="action-btn">Done</button>
+        </div>
+        <div id="privacyContent" class="markdown-content" style="max-height: 300px; overflow-y: auto;">
+            Loading...
+        </div>
+    </div>
+
+    <!-- Contact Sheet -->
+    <div id="contactSheet" class="bottom-sheet">
+        <div class="sheet-header">
+            <div style="width: 36px;"></div>
+            <span class="sheet-title">Contact</span>
+            <button id="closeContactBtn" class="action-btn">Close</button>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+            <fieldset class="text-field">
+                <legend class="text-field-legend">Name</legend>
+                <input type="text" placeholder="Your Name" style="border:none; width: 100%; background: transparent; color: inherit;">
+            </fieldset>
+            <fieldset class="text-field">
+                <legend class="text-field-legend">Message</legend>
+                <input type="text" placeholder="How can we help?" style="border:none; width: 100%; background: transparent; color: inherit;">
+            </fieldset>
+             <button class="action-btn" style="background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); justify-content: center; width: 100%; margin-top: 8px;">
+                Send Message
+            </button>
+        </div>
+    </div>
+
+    <!-- Donate Sheet -->
+    <div id="donateSheet" class="bottom-sheet">
+        <div class="sheet-header">
+            <div style="width: 36px;"></div>
+            <span class="sheet-title">Donate</span>
+            <button id="closeDonateBtn" class="action-btn">Close</button>
+        </div>
+        <div style="text-align: center; display: flex; flex-direction: column; gap: 16px; padding: 16px 0;">
+            <div style="font-size: 48px;">☕</div>
+            <div style="color: var(--md-sys-color-on-surface-variant);">
+                Support the development of Keimenon Lite.
+            </div>
+            <button class="action-btn" style="background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); justify-content: center; width: 100%;">
+                Buy me a Coffee
+            </button>
+        </div>
+    </div>
+    
   </div>
   <!-- Mock Injection for Dev Preview -->
   <!-- Mock Injection moved to sidepanel.js -->

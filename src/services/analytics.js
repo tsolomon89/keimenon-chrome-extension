@@ -12,6 +12,13 @@ export class AnalyticsService {
     }
 
     async init() {
+        // Safety check for non-extension environments
+        if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
+            console.warn('[Analytics] Chrome storage not available - analytics disabled');
+            this.enabled = false;
+            return;
+        }
+
         // Load settings
         const store = await chrome.storage.local.get(['analyticsEnabled', 'clientId']);
         this.enabled = store.analyticsEnabled !== false;
@@ -26,6 +33,7 @@ export class AnalyticsService {
         // Session management (simple: one per load)
         this.sessionId = Date.now().toString();
     }
+
 
     setEnabled(enabled) {
         this.enabled = enabled;
