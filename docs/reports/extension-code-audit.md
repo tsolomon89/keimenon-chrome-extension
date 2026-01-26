@@ -1,7 +1,7 @@
 # Audit Report: Keimenon Lite Chrome Extension
 
 ## 1) Executive Summary
-This audit details the technical state of the Keimenon Lite extension (v1.3.55). The codebase is generally clean and modular regarding adapter logic, but suffers from significant redundancy in scraping logic and a critical architectural flaw regarding message identity stability.
+This audit details the technical state of the Keimenon Lite extension (v1.3.56). The codebase has been significantly improved regarding redundancy and ID stability.
 
 *   **[Critical] ID Instability**: Message IDs rely on list index (`hash_index`). Any DOM change shift (e.g. streaming token, deleted message) changes IDs of all subsequent messages, breaking UI selection state.
 *   **[High] Security Risk**: The Side Panel uses a primitive Markdown parser that injects `innerHTML` without sanitization. While currently used for local files, this pattern is dangerous.
