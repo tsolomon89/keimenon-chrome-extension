@@ -11,6 +11,7 @@ export class GrokAdapter {
     this.name = 'grok';
     this.observer = null;
     this.isScanning = false;
+    this.nodeCache = new WeakMap();
   }
 
   isSupportedLocation(url) {
@@ -66,13 +67,22 @@ export class GrokAdapter {
 
         if (!text) continue;
 
+        let hash;
+        
+        // Check cache
+        const cached = this.nodeCache.get(node);
+        if (cached && cached.text === text) {
+            hash = cached.hash;
+        } else {
+            hash = await generateMessageHash(text);
+            this.nodeCache.set(node, { text, hash });
+        }
+
         // Determine Author
         // User has `bg-surface-l1` (or similar user color class)
         // Model is assumed to be the other state.
         const author = node.classList.contains('bg-surface-l1') ? 'user' : 'assistant';
 
-        const hash = await generateMessageHash(text);
-        
         // Occurrence-based ID
         const occurrenceIndex = occurrenceMap.get(hash) || 0;
         occurrenceMap.set(hash, occurrenceIndex + 1);
@@ -99,6 +109,7 @@ export class GrokAdapter {
     
     const target = findScrollContainer(document) || document.querySelector('main') || document.body;
     this.observer = createDebouncedObserver(target, callback);
+    if (typeof callback === 'function') callback();
   }
 
   async scanFullChat(options) {

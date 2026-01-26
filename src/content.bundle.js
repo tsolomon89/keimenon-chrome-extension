@@ -145,9 +145,10 @@
           this.observer = null;
           this.isScanning = false;
           this.context = context;
+          this.nodeCache = /* @__PURE__ */ new WeakMap();
         }
         isSupportedLocation(url) {
-          return url.includes("chatgpt.com/c/") || url.includes("chat.openai.com/c/");
+          return url.includes("chatgpt.com") || url.includes("chat.openai.com");
         }
         getConversationId(url) {
           const match = url.match(/\/c\/([a-f0-9-]+)/);
@@ -157,14 +158,34 @@
           const messages = [];
           const conversationId = this.context.location ? this.getConversationId(this.context.location.href) : "mock-conversation";
           let nodes = Array.from(this.context.querySelectorAll("[data-message-author-role]"));
+          if (nodes.length === 0) {
+            nodes = Array.from(this.context.querySelectorAll('.text-message, .message-content, [class*="conversation-turn"]'));
+            if (nodes.length > 0) {
+              console.log("[Keimenon] Found nodes via fallback selectors:", nodes.length);
+            }
+          }
           const occurrenceMap = /* @__PURE__ */ new Map();
           for (const [index, node] of nodes.entries()) {
             const rawText = node.innerText || node.textContent;
             const text = normalizeText(rawText);
             if (!text) continue;
+            let hash;
+            const cached = this.nodeCache.get(node);
+            if (cached && cached.text === text) {
+              hash = cached.hash;
+            } else {
+              hash = await generateMessageHash(text);
+              this.nodeCache.set(node, { text, hash });
+            }
             const role = node.getAttribute("data-message-author-role");
-            const author = role === "user" ? "user" : "assistant";
-            const hash = await generateMessageHash(text);
+            let author = "assistant";
+            if (role === "user") {
+              author = "user";
+            } else if (!role) {
+              if (node.querySelector(".font-user-message") || node.matches(".font-user-message")) {
+                author = "user";
+              }
+            }
             const occurrenceIndex = occurrenceMap.get(hash) || 0;
             occurrenceMap.set(hash, occurrenceIndex + 1);
             const id = generateOccurrenceKey(hash, occurrenceIndex);
@@ -184,8 +205,10 @@
         }
         observe(callback) {
           if (this.observer) return;
-          const target = this.findScrollContainer() || this.context.querySelector("main") || this.context.body;
+          const target = findScrollContainer(this.context) || this.context.querySelector("main") || this.context.body;
+          console.log("[Keimenon] ChatGPTAdapter.observe starting on target:", target);
           this.observer = createDebouncedObserver(target, callback);
+          if (typeof callback === "function") callback();
         }
         disconnect() {
           if (this.observer) {
@@ -229,6 +252,7 @@
           this.name = "claude";
           this.observer = null;
           this.isScanning = false;
+          this.nodeCache = /* @__PURE__ */ new WeakMap();
         }
         isSupportedLocation(url) {
           return url.includes("claude.ai/chat/");
@@ -252,19 +276,27 @@
           const messageNodes = Array.from(nodes);
           const occurrenceMap = /* @__PURE__ */ new Map();
           for (const [index, node] of messageNodes.entries()) {
+            let text;
+            let hash;
             const clone = node.cloneNode(true);
             const thinkingBlocks = clone.querySelectorAll(".font-ui");
             thinkingBlocks.forEach((block) => block.remove());
             const rawText = clone.innerText || clone.textContent;
-            const text = normalizeText(rawText);
+            text = normalizeText(rawText);
             if (!text) continue;
+            const cached = this.nodeCache.get(node);
+            if (cached && cached.text === text) {
+              hash = cached.hash;
+            } else {
+              hash = await generateMessageHash(text);
+              this.nodeCache.set(node, { text, hash });
+            }
             let author = "assistant";
             if (node.getAttribute("data-message-author") === "user" || node.classList.contains("font-user-message") || node.classList.contains("!font-user-message") || node.matches('[data-testid="user-message"]')) {
               author = "user";
             } else if (node.classList.contains("font-claude-response")) {
               author = "assistant";
             }
-            const hash = await generateMessageHash(text);
             const occurrenceIndex = occurrenceMap.get(hash) || 0;
             occurrenceMap.set(hash, occurrenceIndex + 1);
             const id = generateOccurrenceKey(hash, occurrenceIndex);
@@ -283,8 +315,9 @@
         }
         observe(callback) {
           if (this.observer) return;
-          const target = this.findScrollContainer() || document.querySelector('[class*="ChatMessageList"], [class*="scroller"]') || document.body;
+          const target = findScrollContainer(document) || document.querySelector('[class*="ChatMessageList"], [class*="scroller"]') || document.body;
           this.observer = createDebouncedObserver(target, callback);
+          if (typeof callback === "function") callback();
         }
         async scanFullChat(options) {
           if (this.isScanning) return;
@@ -328,6 +361,7 @@
           this.name = "grok";
           this.observer = null;
           this.isScanning = false;
+          this.nodeCache = /* @__PURE__ */ new WeakMap();
         }
         isSupportedLocation(url) {
           return url.includes("grok.com/c/") || url.includes("x.com/i/grok");
@@ -351,8 +385,15 @@
               text = normalizeText(node.innerText);
             }
             if (!text) continue;
+            let hash;
+            const cached = this.nodeCache.get(node);
+            if (cached && cached.text === text) {
+              hash = cached.hash;
+            } else {
+              hash = await generateMessageHash(text);
+              this.nodeCache.set(node, { text, hash });
+            }
             const author = node.classList.contains("bg-surface-l1") ? "user" : "assistant";
-            const hash = await generateMessageHash(text);
             const occurrenceIndex = occurrenceMap.get(hash) || 0;
             occurrenceMap.set(hash, occurrenceIndex + 1);
             const id = generateOccurrenceKey(hash, occurrenceIndex);
@@ -373,6 +414,7 @@
           if (this.observer) return;
           const target = findScrollContainer(document) || document.querySelector("main") || document.body;
           this.observer = createDebouncedObserver(target, callback);
+          if (typeof callback === "function") callback();
         }
         async scanFullChat(options) {
           if (this.isScanning) return;
@@ -411,6 +453,7 @@
           this.name = "gemini";
           this.observer = null;
           this.isScanning = false;
+          this.nodeCache = /* @__PURE__ */ new WeakMap();
         }
         isSupportedLocation(url) {
           return url.includes("gemini.google.com/app/");
@@ -443,14 +486,22 @@
             const rawText = node.innerText || node.textContent;
             const text = normalizeText(rawText);
             if (!text) continue;
+            let hash;
+            const cached = this.nodeCache.get(node);
+            if (cached && cached.text === text) {
+              hash = cached.hash;
+            } else {
+              hash = await generateMessageHash(text);
+              this.nodeCache.set(node, { text, hash });
+            }
             let author = "assistant";
             if (node.classList.contains("user-query") || node.classList.contains("query-text") || node.matches('[data-test-id="user-message"]') || node.getAttribute("data-is-user") === "true") {
               author = "user";
             }
-            if (node.tagName.toLowerCase() === "structured-content-container" || node.tagName.toLowerCase() === "message-content" || node.classList.contains("model-response-text") || node.classList.contains("model-response") || node.classList.contains("response-text") || node.matches('[data-test-id="model-message"]')) {
+            if (node.tagName.toLowerCase() === "structured-content-container" || node.tagName.toLowerCase() === "message-content" || node.classList.contains("model-response-text") || node.classList.contains("model-response") || node.classList.contains("model-response") || // Duplicate check in original?
+            node.classList.contains("response-text") || node.matches('[data-test-id="model-message"]')) {
               author = "assistant";
             }
-            const hash = await generateMessageHash(text);
             const occurrenceIndex = occurrenceMap.get(hash) || 0;
             occurrenceMap.set(hash, occurrenceIndex + 1);
             const id = generateOccurrenceKey(hash, occurrenceIndex);
@@ -471,6 +522,7 @@
           if (this.observer) return;
           const target = findScrollContainer(document) || document.querySelector("main") || document.body;
           this.observer = createDebouncedObserver(target, callback);
+          if (typeof callback === "function") callback();
         }
         async scanFullChat(options) {
           if (this.isScanning) return;
@@ -534,14 +586,65 @@
       var scanController = null;
       function init() {
         adapter = AdapterFactory.createAdapter(window.location.href);
-        if (!adapter) return console.log("[Keimenon] No adapter for this page.");
-        console.log(`[Keimenon] Initialized adapter: ${adapter.name}`);
+        if (!adapter) console.log("[Keimenon] No adapter for this page.");
+        else console.log(`[Keimenon] Initialized adapter: ${adapter.name}`);
         chrome.runtime.onConnect.addListener((port) => {
           if (port.name === "sidepanel-connection") {
             console.log("[Keimenon] Sidepanel connected.");
             handleNewConnection(port);
           }
         });
+        let lastUrl = window.location.href;
+        setInterval(() => {
+          const currentUrl = window.location.href;
+          if (currentUrl !== lastUrl) {
+            lastUrl = currentUrl;
+            handleNavigation();
+          }
+        }, 1e3);
+        const bodyObserver = new MutationObserver(() => {
+          const currentUrl = window.location.href;
+          if (currentUrl !== lastUrl) {
+            lastUrl = currentUrl;
+            handleNavigation();
+          }
+        });
+        bodyObserver.observe(document.body, { childList: true });
+      }
+      function handleNavigation() {
+        const currentUrl = window.location.href;
+        const newAdapter = AdapterFactory.createAdapter(currentUrl);
+        if (adapter && newAdapter && adapter.name === newAdapter.name) {
+          if (adapter.isSupportedLocation(currentUrl)) {
+            console.log("[Keimenon] SPA Navigation within same platform.");
+            if (adapter.disconnect) adapter.disconnect();
+            if (activePort) startSession();
+          } else {
+            console.log("[Keimenon] Navigated to unsupported area of same platform.");
+            if (adapter.disconnect) adapter.disconnect();
+            if (activePort) {
+              activePort.postMessage({
+                action: "EXTENSION_READY",
+                meta: { adapter: adapter.name, status: "idle" }
+              });
+            }
+          }
+        } else if (newAdapter) {
+          console.log(`[Keimenon] Platform switched to ${newAdapter.name}`);
+          if (adapter && adapter.disconnect) adapter.disconnect();
+          adapter = newAdapter;
+          if (activePort) startSession();
+        } else {
+          console.log("[Keimenon] Navigated to unsupported platform.");
+          if (adapter && adapter.disconnect) adapter.disconnect();
+          adapter = null;
+          if (activePort) {
+            activePort.postMessage({
+              action: "EXTENSION_READY",
+              meta: { adapter: "none", status: "idle" }
+            });
+          }
+        }
       }
       function handleNewConnection(port) {
         if (activePort) {
@@ -555,7 +658,7 @@
           console.log("[Keimenon] Connected but idle (Home Page or Unsupported View).");
           port.postMessage({
             action: "EXTENSION_READY",
-            meta: { adapter: adapter.name, capabilities: {}, status: "idle" }
+            meta: { adapter: adapter ? adapter.name : "none", capabilities: {}, status: "idle" }
           });
         }
         port.onDisconnect.addListener(() => {
@@ -590,6 +693,12 @@
           });
         }
         extractAndSend();
+        let retries = 0;
+        const warmUp = setInterval(() => {
+          retries++;
+          extractAndSend();
+          if (retries >= 3) clearInterval(warmUp);
+        }, 500);
         adapter.observe(() => {
           extractAndSend();
         });

@@ -11,6 +11,7 @@ export class ClaudeAdapter {
     this.name = 'claude';
     this.observer = null;
     this.isScanning = false;
+    this.nodeCache = new WeakMap();
   }
 
   isSupportedLocation(url) {
@@ -42,16 +43,50 @@ export class ClaudeAdapter {
     const occurrenceMap = new Map();
 
     for (const [index, node] of messageNodes.entries()) {
-        // Clone node to manipulate it without affecting the DOM
-        const clone = node.cloneNode(true);
+        let text;
+        let hash;
+
+        // Check cache first (keyed by original node)
+        // We assume that if the node reference is same, the text is likely same unless mutated.
+        // We will double check raw text length or something cheap if strictly needed, 
+        // but for now we rely on the fact that once a message is fully streamed, it rarely changes.
+        // However, during streaming, text changes. So we must verify text content.
         
-        // Remove Chain of Thought / Reasoning blocks (identified by .font-ui)
+        // To verify text content efficiently, we might need to get innerText. 
+        // But getting innerText causes reflow. 
+        // Is there a way to avoid reflow? likely not. 
+        // But we can avoid the Clone + Remove overhead if we cache the dirty check result?
+        // Actually, let's just do the text extraction. It's the HASHING that is expensive (SHA-256).
+        // Text normalization is relatively cheap.
+        
+        // For Claude, we have to clone to remove artifacts. This IS expensive.
+        // Optimization: Check if node.innerText is same as cached.rawText? 
+        // But .font-ui might be present.
+        
+        // Let's try to just cache the result of the expensive operation (Clone+Clean+Hash)
+        // invalidating if the simple textContent length changed markedly?
+        
+        // Safer approach: Do the extraction, but cache the HASH.
+        // Extraction cost: Clone + Remove. 
+        // Can we avoid Clone? only if we can select text nodes.
+        
+        // Let's stick to: Extract text -> Check Cache -> (Hash or Reuse).
+        
+        const clone = node.cloneNode(true);
         const thinkingBlocks = clone.querySelectorAll('.font-ui');
         thinkingBlocks.forEach(block => block.remove());
-
         const rawText = clone.innerText || clone.textContent; 
-        const text = normalizeText(rawText);
+        text = normalizeText(rawText);
+        
         if (!text) continue;
+
+        const cached = this.nodeCache.get(node);
+        if (cached && cached.text === text) {
+            hash = cached.hash;
+        } else {
+            hash = await generateMessageHash(text);
+            this.nodeCache.set(node, { text, hash });
+        }
 
         // Determine Author
         let author = 'assistant';
@@ -64,8 +99,6 @@ export class ClaudeAdapter {
              author = 'assistant';
         }
 
-        const hash = await generateMessageHash(text);
-        
         // Occurrence-based ID
         const occurrenceIndex = occurrenceMap.get(hash) || 0;
         occurrenceMap.set(hash, occurrenceIndex + 1);
@@ -91,9 +124,10 @@ export class ClaudeAdapter {
      if (this.observer) return;
      
      // Stricter target: typically the scrollable list
-     const target = this.findScrollContainer() || document.querySelector('[class*="ChatMessageList"], [class*="scroller"]') || document.body;
+     const target = findScrollContainer(document) || document.querySelector('[class*="ChatMessageList"], [class*="scroller"]') || document.body;
      
      this.observer = createDebouncedObserver(target, callback);
+     if (typeof callback === 'function') callback();
   }
 
   async scanFullChat(options) {

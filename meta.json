@@ -1,0 +1,219 @@
+{
+  "inputs": {
+    "src/shared/hash.js": {
+      "bytes": 500,
+      "imports": [],
+      "format": "esm"
+    },
+    "src/shared/normalize.js": {
+      "bytes": 246,
+      "imports": [],
+      "format": "esm"
+    },
+    "src/shared/dom.js": {
+      "bytes": 1422,
+      "imports": [
+        {
+          "path": "src/shared/normalize.js",
+          "kind": "import-statement",
+          "original": "./normalize.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/shared/observer.js": {
+      "bytes": 1448,
+      "imports": [],
+      "format": "esm"
+    },
+    "src/shared/scroller.js": {
+      "bytes": 2289,
+      "imports": [],
+      "format": "esm"
+    },
+    "src/adapters/ChatGPTAdapter.js": {
+      "bytes": 3382,
+      "imports": [
+        {
+          "path": "src/shared/hash.js",
+          "kind": "import-statement",
+          "original": "../shared/hash.js"
+        },
+        {
+          "path": "src/shared/dom.js",
+          "kind": "import-statement",
+          "original": "../shared/dom.js"
+        },
+        {
+          "path": "src/shared/observer.js",
+          "kind": "import-statement",
+          "original": "../shared/observer.js"
+        },
+        {
+          "path": "src/shared/scroller.js",
+          "kind": "import-statement",
+          "original": "../shared/scroller.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/adapters/ClaudeAdapter.js": {
+      "bytes": 4138,
+      "imports": [
+        {
+          "path": "src/shared/hash.js",
+          "kind": "import-statement",
+          "original": "../shared/hash.js"
+        },
+        {
+          "path": "src/shared/dom.js",
+          "kind": "import-statement",
+          "original": "../shared/dom.js"
+        },
+        {
+          "path": "src/shared/observer.js",
+          "kind": "import-statement",
+          "original": "../shared/observer.js"
+        },
+        {
+          "path": "src/shared/scroller.js",
+          "kind": "import-statement",
+          "original": "../shared/scroller.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/adapters/GrokAdapter.js": {
+      "bytes": 4449,
+      "imports": [
+        {
+          "path": "src/shared/hash.js",
+          "kind": "import-statement",
+          "original": "../shared/hash.js"
+        },
+        {
+          "path": "src/shared/dom.js",
+          "kind": "import-statement",
+          "original": "../shared/dom.js"
+        },
+        {
+          "path": "src/shared/observer.js",
+          "kind": "import-statement",
+          "original": "../shared/observer.js"
+        },
+        {
+          "path": "src/shared/scroller.js",
+          "kind": "import-statement",
+          "original": "../shared/scroller.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/adapters/GeminiAdapter.js": {
+      "bytes": 5106,
+      "imports": [
+        {
+          "path": "src/shared/hash.js",
+          "kind": "import-statement",
+          "original": "../shared/hash.js"
+        },
+        {
+          "path": "src/shared/dom.js",
+          "kind": "import-statement",
+          "original": "../shared/dom.js"
+        },
+        {
+          "path": "src/shared/observer.js",
+          "kind": "import-statement",
+          "original": "../shared/observer.js"
+        },
+        {
+          "path": "src/shared/scroller.js",
+          "kind": "import-statement",
+          "original": "../shared/scroller.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/adapters/AdapterFactory.js": {
+      "bytes": 695,
+      "imports": [
+        {
+          "path": "src/adapters/ChatGPTAdapter.js",
+          "kind": "import-statement",
+          "original": "./ChatGPTAdapter.js"
+        },
+        {
+          "path": "src/adapters/ClaudeAdapter.js",
+          "kind": "import-statement",
+          "original": "./ClaudeAdapter.js"
+        },
+        {
+          "path": "src/adapters/GrokAdapter.js",
+          "kind": "import-statement",
+          "original": "./GrokAdapter.js"
+        },
+        {
+          "path": "src/adapters/GeminiAdapter.js",
+          "kind": "import-statement",
+          "original": "./GeminiAdapter.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/content.js": {
+      "bytes": 6825,
+      "imports": [
+        {
+          "path": "src/adapters/AdapterFactory.js",
+          "kind": "import-statement",
+          "original": "./adapters/AdapterFactory.js"
+        }
+      ],
+      "format": "cjs"
+    }
+  },
+  "outputs": {
+    "src/content.bundle.js": {
+      "imports": [],
+      "exports": [],
+      "entryPoint": "src/content.js",
+      "inputs": {
+        "src/shared/hash.js": {
+          "bytesInOutput": 568
+        },
+        "src/shared/normalize.js": {
+          "bytesInOutput": 331
+        },
+        "src/shared/dom.js": {
+          "bytesInOutput": 810
+        },
+        "src/shared/observer.js": {
+          "bytesInOutput": 817
+        },
+        "src/shared/scroller.js": {
+          "bytesInOutput": 1205
+        },
+        "src/adapters/ChatGPTAdapter.js": {
+          "bytesInOutput": 3058
+        },
+        "src/adapters/ClaudeAdapter.js": {
+          "bytesInOutput": 3663
+        },
+        "src/adapters/GrokAdapter.js": {
+          "bytesInOutput": 2831
+        },
+        "src/adapters/GeminiAdapter.js": {
+          "bytesInOutput": 3786
+        },
+        "src/adapters/AdapterFactory.js": {
+          "bytesInOutput": 806
+        },
+        "src/content.js": {
+          "bytesInOutput": 5690
+        }
+      },
+      "bytes": 24296
+    }
+  }
+}

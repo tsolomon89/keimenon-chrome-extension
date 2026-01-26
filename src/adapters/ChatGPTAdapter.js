@@ -12,10 +12,11 @@ export class ChatGPTAdapter {
     this.observer = null;
     this.isScanning = false;
     this.context = context;
+    this.nodeCache = new WeakMap();
   }
 
   isSupportedLocation(url) {
-    return url.includes('chatgpt.com/c/') || url.includes('chat.openai.com/c/');
+    return url.includes('chatgpt.com') || url.includes('chat.openai.com');
   }
 
   getConversationId(url) {
@@ -31,6 +32,15 @@ export class ChatGPTAdapter {
     // Primary selector: Attribute based (both user and assistant)
     let nodes = Array.from(this.context.querySelectorAll('[data-message-author-role]'));
     
+    // Fallback: If no nodes found via attributes, try common class names
+    if (nodes.length === 0) {
+        // Common OpenAI class names (subject to change, but good defaults)
+        nodes = Array.from(this.context.querySelectorAll('.text-message, .message-content, [class*="conversation-turn"]'));
+        if (nodes.length > 0) {
+            console.log('[Keimenon] Found nodes via fallback selectors:', nodes.length);
+        }
+    }
+    
     // Process nodes
     const occurrenceMap = new Map();
     
@@ -39,10 +49,26 @@ export class ChatGPTAdapter {
         const text = normalizeText(rawText);
         if (!text) continue;
 
-        const role = node.getAttribute('data-message-author-role');
-        const author = role === 'user' ? 'user' : 'assistant';
+        let hash;
+        const cached = this.nodeCache.get(node);
+        if (cached && cached.text === text) {
+            hash = cached.hash;
+        } else {
+            hash = await generateMessageHash(text);
+            this.nodeCache.set(node, { text, hash });
+        }
 
-        const hash = await generateMessageHash(text);
+        const role = node.getAttribute('data-message-author-role');
+        let author = 'assistant';
+        
+        if (role === 'user') {
+            author = 'user';
+        } else if (!role) {
+             // Heuristic for fallback selectors
+             if (node.querySelector('.font-user-message') || node.matches('.font-user-message')) {
+                 author = 'user';
+             }
+        }
         
         // Occurrence-based ID (Stable against deletion of siblings)
         const occurrenceIndex = occurrenceMap.get(hash) || 0;
@@ -69,9 +95,13 @@ export class ChatGPTAdapter {
     if (this.observer) return;
     
     // Use the specific container (e.g. .react-scroll-to-bottom) if found, otherwise main/body
-    const target = this.findScrollContainer() || this.context.querySelector('main') || this.context.body;
+    const target = findScrollContainer(this.context) || this.context.querySelector('main') || this.context.body;
     
+    console.log('[Keimenon] ChatGPTAdapter.observe starting on target:', target);
     this.observer = createDebouncedObserver(target, callback);
+    
+    // Immediate initial run to catch already loaded content
+    if (typeof callback === 'function') callback();
   }
 
 

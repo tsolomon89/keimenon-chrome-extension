@@ -8,9 +8,8 @@ let scanController = null;
 
 function init() {
     adapter = AdapterFactory.createAdapter(window.location.href);
-    if (!adapter) return console.log('[Keimenon] No adapter for this page.');
-
-    console.log(`[Keimenon] Initialized adapter: ${adapter.name}`);
+    if (!adapter) console.log('[Keimenon] No adapter for this page.');
+    else console.log(`[Keimenon] Initialized adapter: ${adapter.name}`);
 
     // Listen for long-lived connection from Side Panel
     chrome.runtime.onConnect.addListener((port) => {
@@ -19,6 +18,81 @@ function init() {
             handleNewConnection(port);
         }
     });
+
+    // SPA Navigation Detection
+    let lastUrl = window.location.href;
+    
+    // METHOD 1: Wrapper / Polling (Robust)
+    setInterval(() => {
+        const currentUrl = window.location.href;
+        if (currentUrl !== lastUrl) {
+            // console.debug('[Keimenon] URL Changed (Poller)');
+            lastUrl = currentUrl;
+            handleNavigation();
+        }
+    }, 1000);
+
+    // METHOD 2: MutationObserver for major body changes (often signals navigation or re-render)
+    const bodyObserver = new MutationObserver(() => {
+        const currentUrl = window.location.href;
+        if (currentUrl !== lastUrl) {
+           // console.debug('[Keimenon] URL Changed (Observer)');
+           lastUrl = currentUrl;
+           handleNavigation();
+        }
+    });
+    bodyObserver.observe(document.body, { childList: true });
+}
+
+function handleNavigation() {
+    // Check if adapter supports new location
+    // Note: Use the existing factory logic if possible, or just check current adapter
+    const currentUrl = window.location.href;
+    
+    // Check if we need to switch adapter (e.g. going from ChatGPT to Grok? Unlikely in same tab, but possible)
+    // Or if we just need to re-scan.
+    
+    // Re-evaluate adapter for the new URL
+    const newAdapter = AdapterFactory.createAdapter(currentUrl);
+    
+    // Case 1: Same platform, just navigation
+    if (adapter && newAdapter && adapter.name === newAdapter.name) {
+        if (adapter.isSupportedLocation(currentUrl)) {
+             console.log('[Keimenon] SPA Navigation within same platform.');
+             // Disconnect old observer
+             if (adapter.disconnect) adapter.disconnect();
+             // Re-start session (finds new elements)
+             if (activePort) startSession();
+        } else {
+            console.log('[Keimenon] Navigated to unsupported area of same platform.');
+            if (adapter.disconnect) adapter.disconnect();
+            if (activePort) {
+                activePort.postMessage({ 
+                    action: 'EXTENSION_READY', 
+                    meta: { adapter: adapter.name, status: 'idle' } 
+                });
+            }
+        }
+    } 
+    // Case 2: Platform switch or new platform found
+    else if (newAdapter) {
+        console.log(`[Keimenon] Platform switched to ${newAdapter.name}`);
+        if (adapter && adapter.disconnect) adapter.disconnect();
+        adapter = newAdapter;
+        if (activePort) startSession();
+    }
+    // Case 3: No adapter for this URL
+    else {
+        console.log('[Keimenon] Navigated to unsupported platform.');
+        if (adapter && adapter.disconnect) adapter.disconnect();
+        adapter = null;
+        if (activePort) {
+            activePort.postMessage({ 
+                action: 'EXTENSION_READY', 
+                meta: { adapter: 'none', status: 'idle' } 
+            });
+        }
+    }
 }
 
 function handleNewConnection(port) {
@@ -38,7 +112,7 @@ function handleNewConnection(port) {
         // Notify panel we are ready but idle?
         port.postMessage({ 
             action: 'EXTENSION_READY', 
-            meta: { adapter: adapter.name, capabilities: {}, status: 'idle' } 
+            meta: { adapter: adapter ? adapter.name : 'none', capabilities: {}, status: 'idle' } 
         });
     }
 
@@ -79,7 +153,22 @@ function startSession() {
         });
     }
 
+    // Initial extraction
     extractAndSend();
+    
+    // Warm-up Polling: Retry scanning 3 times over 1.5 seconds to catch SPA rendering lag
+    // This fixes the "Black Screen" issue where URL changes before DOM is ready
+    let retries = 0;
+    const warmUp = setInterval(() => {
+        retries++;
+        extractAndSend();
+        if (retries >= 3) clearInterval(warmUp);
+    }, 500);
+
+    // Start Observer
+    // Delay observer attachment slightly to ensure we target the *new* container if possible?
+    // No, standard observe is fine, but we might need to re-find target if it changes.
+    // For now, relies on the fact that mutation on body/main will trigger if we fallback.
     adapter.observe(() => {
         extractAndSend();
     });
@@ -162,10 +251,6 @@ async function extractAndSend() {
         }
     }, 200);
 }
-
-// ... startScan / stopScan can remain mostly same, but use activePort.postMessage instead of runtime.sendMessage ...
-// For brevity, assuming startScan/stopScan are adapted or we wrap postMessage. 
-// Ideally we update them to use activePort too. 
 
 // Updating startScan to use activePort for completion
 async function startScan() {

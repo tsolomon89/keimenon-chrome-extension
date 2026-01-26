@@ -11,6 +11,7 @@ export class GeminiAdapter {
     this.name = 'gemini';
     this.observer = null;
     this.isScanning = false;
+    this.nodeCache = new WeakMap();
   }
 
   isSupportedLocation(url) {
@@ -74,6 +75,17 @@ export class GeminiAdapter {
         const text = normalizeText(rawText);
         if (!text) continue;
 
+        let hash;
+        
+        // Check cache
+        const cached = this.nodeCache.get(node);
+        if (cached && cached.text === text) {
+            hash = cached.hash;
+        } else {
+            hash = await generateMessageHash(text);
+            this.nodeCache.set(node, { text, hash });
+        }
+
         // Determine Author
         let author = 'assistant'; // Default to model
 
@@ -90,13 +102,12 @@ export class GeminiAdapter {
             node.tagName.toLowerCase() === 'message-content' ||
             node.classList.contains('model-response-text') ||
             node.classList.contains('model-response') ||
+            node.classList.contains('model-response') || // Duplicate check in original?
             node.classList.contains('response-text') ||
             node.matches('[data-test-id="model-message"]')) {
             author = 'assistant';
         }
 
-        const hash = await generateMessageHash(text);
-        
         // Occurrence-based ID
         const occurrenceIndex = occurrenceMap.get(hash) || 0;
         occurrenceMap.set(hash, occurrenceIndex + 1);
@@ -125,6 +136,7 @@ export class GeminiAdapter {
     const target = findScrollContainer(document) || document.querySelector('main') || document.body;
     
     this.observer = createDebouncedObserver(target, callback);
+    if (typeof callback === 'function') callback();
   }
 
   async scanFullChat(options) {

@@ -837,7 +837,7 @@ body {
 
 /* Search Row */
 .search-row {
-  padding: 0 16px 8px 16px;
+  padding: 16 16px 8px 16px;
   display: flex;
   gap: 8px;
   align-items: center;

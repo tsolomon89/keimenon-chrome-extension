@@ -1,7 +1,7 @@
 {
     "manifest_version":  3,
     "name":  "Keimenon Lite",
-    "version":  "1.3.56",
+    "version":  "1.4.0",
     "description":  "Extract and export specific messages or full conversations from AI chat pages locally. Privacy-first.",
     "permissions":  [
                         "sidePanel",
