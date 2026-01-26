@@ -1,12 +1,5 @@
-
-
-import { authService } from '../services/auth.js';
-
-
-import { analytics } from '../services/analytics.js';
 import { filterMessages } from '../shared/filter.js';
 
-// --- State Management ---
 const appState = {
     messages: [],           // All raw messages
     hiddenIds: new Set(),   // IDs of hidden messages
@@ -52,70 +45,19 @@ const filterOverlay = document.getElementById('filterOverlay');
 const closeFilterBtn = document.getElementById('closeFilterBtn');
 const clearFilterBtn = document.getElementById('clearFilterBtn');
 const minLenInput = document.getElementById('minLenInput');
-// const sortSelect = document.getElementById('sortSelect'); // REMOVED
 
 // Menu
 const menuBtn = document.getElementById('menuBtn');
 const actionsMenu = document.getElementById('actionsMenu');
-const menuAuthAction = document.getElementById('menuAuthAction');
 const menuPrivacyBtn = document.getElementById('menuPrivacyBtn');
 const menuContactBtn = document.getElementById('menuContactBtn');
 const menuDonateBtn = document.getElementById('menuDonateBtn');
 
 // Scanning
-const scanProgressEl = document.getElementById('scanProgress');
-const stopScanBtn = document.getElementById('stopScanBtn');
 const quickScanBtn = document.getElementById('quickScanBtn');
 const quickRefreshBtn = document.getElementById('quickRefreshBtn');
-
-// Login
-const loginScreen = document.getElementById('loginScreen');
-const googleSignInBtn = document.getElementById('googleSignInBtn');
-
-// Settings / Stats (Features: Task RED, BLUE, GREEN, PURPLE)
-const analyticsToggle = document.getElementById('analyticsToggle');
-const visibilityActionBtn = document.getElementById('visibilityActionBtn');
-const visibilityIcon = document.getElementById('visibilityIcon');
-const statCharsVal = document.getElementById('statCharsVal');
-const statTokensVal = document.getElementById('statTokensVal');
-
-
-// --- Initialization ---
-
-// 1. Analytics
-analytics.init().then(() => {
-    analyticsToggle.checked = analytics.enabled;
-    analytics.trackEvent('panel_open');
-});
-
-analyticsToggle.addEventListener('change', (e) => {
-    analytics.setEnabled(e.target.checked);
-});
-
-// 2. Auth Integration
-authService.onAuthStateChanged = (state) => {
-    const { user, authEnabled } = state;
-    if (!authEnabled || user) {
-        loginScreen.classList.add('hidden');
-        menuAuthAction.textContent = user ? 'Sign Out' : (authEnabled ? 'Sign In' : 'Auth Disabled');
-        menuAuthAction.disabled = !authEnabled;
-    } else {
-        loginScreen.classList.remove('hidden');
-    }
-};
-
-googleSignInBtn.addEventListener('click', () => {
-    authService.signIn();
-});
-
-menuAuthAction.addEventListener('click', () => {
-    if (authService.user) {
-        authService.signOut();
-    } else {
-        authService.signIn();
-    }
-    actionsMenu.classList.remove('open');
-});
+const platformList = document.getElementById('platformList');
+const platformItems = document.querySelectorAll('.platform-item');
 
 // --- UI Logic ---
 
@@ -160,8 +102,37 @@ document.getElementById('closePrivacyBtn')?.addEventListener('click', closeSheet
 menuContactBtn?.addEventListener('click', () => openSheet('contactSheet'));
 document.getElementById('closeContactBtn')?.addEventListener('click', closeSheet);
 
+document.getElementById('sendEmailBtn')?.addEventListener('click', () => {
+    const subjectSelect = document.getElementById('contactSubject');
+    const subjectVal = subjectSelect ? subjectSelect.value : 'General Support';
+    
+    // Format: keimenon_lite [Subject]
+    const finalSubject = `keimenon_lite ${subjectVal}`;
+    const mailto = `mailto:tlcsolomon@gmail.com?subject=${encodeURIComponent(finalSubject)}`;
+    
+    // Extensions sometimes block external protocols from inactive tabs.
+    // Making the tab active ensures the browser prompts the user to open the mail client.
+    if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.create) {
+         chrome.tabs.create({ url: mailto, active: true });
+    } else {
+        // Fallback for non-extension context (dev preview)
+        window.open(mailto, '_blank');
+    }
+    
+    closeSheet();
+});
+
 menuDonateBtn?.addEventListener('click', () => openSheet('donateSheet'));
 document.getElementById('closeDonateBtn')?.addEventListener('click', closeSheet);
+
+document.getElementById('confirmDonateBtn')?.addEventListener('click', () => {
+    const donateUrl = 'https://donate.stripe.com/5kQdR9gpZ7N7aSh5zh4ZG00';
+    if (chrome && chrome.tabs && chrome.tabs.create) {
+        chrome.tabs.create({ url: donateUrl });
+    } else {
+        window.open(donateUrl, '_blank');
+    }
+});
 
 
 // Privacy Loader
@@ -170,7 +141,7 @@ async function loadPrivacyContent() {
     if (!contentEl || contentEl.dataset.loaded) return;
     
     try {
-        const response = await fetch('../../PRIVACY.md'); 
+        const response = await fetch('../../PRIVACY_POLICY.md'); 
         // Try relative path up two levels if serving from src/ui, 
         // OR just try root relative if http-server is at root.
         // http-server root is ./, file is at ./PRIVACY.md. 
@@ -254,41 +225,102 @@ document.addEventListener('click', () => {
     actionsMenu.classList.remove('open');
 });
 
-// Author Toggle Logic (Segmented Control)
+// Author Toggle Logic (New Toggle System)
 const authorToggleGroup = document.getElementById('authorToggleGroup');
-const authorBtns = authorToggleGroup ? authorToggleGroup.querySelectorAll('.segment-btn') : [];
-const glidingPill = authorToggleGroup ? authorToggleGroup.querySelector('.gliding-pill') : null;
+const authorBtns = authorToggleGroup ? authorToggleGroup.querySelectorAll('.toggle-btn') : [];
+
+if (authorToggleGroup) {
+    authorBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const val = btn.dataset.value;
+            appState.filter.author = val;
+            
+            // UI Update
+            authorToggleGroup.dataset.active = val;
+            authorBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            updateUI(); // Re-filter messages
+        });
+    });
+}
 
 function updateAuthorToggleUI() {
-    if (!authorBtns.length || !glidingPill) return;
-    
+    if (!authorToggleGroup || !authorBtns.length) return;
     const currentVal = appState.filter.author;
     
+    authorToggleGroup.dataset.active = currentVal;
     authorBtns.forEach(btn => {
-        if (btn.dataset.value === currentVal) {
+        if (btn.dataset.value === currentVal) btn.classList.add('active');
+        else btn.classList.remove('active');
+    });
+}
+
+// --- Theme System Logic ---
+const menuThemeBtn = document.getElementById('menuThemeBtn');
+const closeThemeBtn = document.getElementById('closeThemeBtn');
+const themeOptions = document.querySelectorAll('.theme-option-btn');
+
+// Determine default theme based on system preference if not saved
+const systemPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+const defaultTheme = systemPrefersDark ? 'outline-dark' : 'outline-light';
+
+const savedTheme = localStorage.getItem('keimenon-theme') || defaultTheme;
+
+// Apply saved theme immediately
+document.body.dataset.theme = savedTheme;
+
+// Menu Action
+menuThemeBtn?.addEventListener('click', () => {
+    openSheet('themeSheet');
+    updateThemeSelectionUI();
+});
+closeThemeBtn?.addEventListener('click', closeSheet);
+
+// Theme Selection
+themeOptions.forEach(btn => {
+    btn.addEventListener('click', () => {
+        const newTheme = btn.dataset.theme;
+        document.body.dataset.theme = newTheme;
+        localStorage.setItem('keimenon-theme', newTheme);
+        updateThemeSelectionUI();
+    });
+});
+
+function updateThemeSelectionUI() {
+    const currentTheme = document.body.dataset.theme;
+    themeOptions.forEach(btn => {
+        if (btn.dataset.theme === currentTheme) {
             btn.classList.add('active');
-            // Move Pill
-            // Since we added gap, we must rely on offsetLeft from the parent
-            // But offsetLeft is relative to the offsetParent (the group, which has position:relative).
-            glidingPill.style.left = `${btn.offsetLeft}px`;
-            glidingPill.style.width = `${btn.offsetWidth}px`;
         } else {
             btn.classList.remove('active');
         }
     });
 }
 
-if (authorToggleGroup) {
-    authorBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            appState.filter.author = btn.dataset.value;
-            updateAuthorToggleUI();
-            updateUI(); // Re-filter messages
+
+// Platform Item Logic
+if (platformItems) {
+    platformItems.forEach(item => {
+        item.addEventListener('click', (e) => {
+            const url = item.dataset.url;
+            if (!url) return;
+
+            // Check for modifier keys for new tab
+            if (e.ctrlKey || e.metaKey || e.button === 1) {
+                chrome.tabs.create({ url });
+            } else {
+                chrome.tabs.update(undefined, { url });
+            }
+        });
+        // Middle click support? (Usually auxclick)
+        item.addEventListener('auxclick', (e) => {
+             if (e.button === 1) { // Middle
+                 const url = item.dataset.url;
+                 if (url) chrome.tabs.create({ url });
+             }
         });
     });
-    // Init
-    // Wait for layout? 
-    setTimeout(updateAuthorToggleUI, 100); 
 }
 
 
@@ -296,93 +328,206 @@ if (authorToggleGroup) {
 
 // --- Chrome API Initialization ---
 
+// --- Chrome API Initialization ---
+
+let activePort = null;
+let currentTabId = null;
+
 function initExtension() {
     if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.tabs) {
         console.warn('[SidePanel] Chrome API not available (running in browser mode?)');
         return;
     }
 
+    // Initial Connection
+    connectToActiveTab();
 
-    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-        if (request.action === 'MESSAGES_UPDATED') {
-            const { messages } = request.payload;
-            const { adapter, capabilities } = request.meta;
-            
-            appState.messages = messages;
-            // UX Improvement: Default select all messages
-            messages.forEach(m => appState.selectedIds.add(m.id));
-            
-            currentAdapterName = adapter;
-            updateScanButton(capabilities?.scan);
-            updateUI();
-            
-        } else if (request.action === 'SCAN_COMPLETE') {
-            setLoading(false);
-            scanProgressEl.classList.remove('active');
-            scanProgressEl.style.display = 'none';
-            analytics.trackEvent('scan_complete', { count: appState.messages.length });
-            
-        } else if (request.action === 'EXTENSION_READY') {
-            setLoading(false);
-            const { adapter, capabilities } = request.meta;
-            currentAdapterName = adapter;
-            updateScanButton(capabilities?.scan);
-            requestMessages();
-        }
+    // Re-connect on tab switch
+    chrome.tabs.onActivated.addListener(() => {
+        connectToActiveTab();
     });
 
-    // Initial Connection
-    ensureConnection();
+    // Re-connect on URL change (navigation)
+    chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+        if (changeInfo.status === 'complete' && tabId === currentTabId) {
+            connectToActiveTab();
+        }
+    });
 }
 
-// Start Initialization
-initExtension();
+function connectToActiveTab() {
+    // Cleanup old connection
+    if (activePort) {
+        try { activePort.disconnect(); } catch(e) {}
+        activePort = null;
+    }
+
+    // Clear old chat data
+    appState.messages = [];
+    appState.hiddenIds.clear();
+    appState.selectedIds.clear();
+
+    // Clear UI - leave empty while loading
+    messageListEl.innerHTML = '';
+
+    // Reset UI State while connecting
+    updateConnectionState(false);
+    statusBadgeEl.textContent = 'Connecting...';
+    statusBadgeEl.style.backgroundColor = '';
+    statusBadgeEl.style.color = '';
+
+    // Show loader
+    showLoader();
+
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (!tabs[0]?.id) {
+             statusBadgeEl.textContent = 'No Tab';
+             hideLoader();
+             return;
+        }
+        
+        const tab = tabs[0];
+        currentTabId = tab.id;
+        
+        // Use URL detection for immediate feedback even before port connects
+        if (tab.url) appState.currentUrl = tab.url;
+
+        try {
+            // Establish long-lived connection
+            const port = chrome.tabs.connect(currentTabId, { name: 'sidepanel-connection' });
+            
+            // Listen for Disconnect
+            port.onDisconnect.addListener(() => {
+                const err = chrome.runtime.lastError;
+                console.log('[SidePanel] Port disconnected', err);
+                activePort = null;
+                updateConnectionState(false);
+                hideLoader();
+                // Usually means content script doesn't exist (e.g. system page)
+                // or page closed. We stand by for next tab event.
+            });
+
+            // Listen for Messages
+            port.onMessage.addListener(handlePortMessage);
+
+            activePort = port;
+            console.log('[SidePanel] Connected to tab', currentTabId);
+
+        } catch (e) {
+            console.error('[SidePanel] Connection failed', e);
+            updateConnectionState(false);
+            hideLoader();
+        }
+    });
+}
+
+// Loader Functions
+function showLoader() {
+    const loader = document.getElementById('pageLoader');
+    if (loader) {
+        loader.classList.add('visible');
+    }
+}
+
+function hideLoader() {
+    const loader = document.getElementById('pageLoader');
+    if (loader) {
+        loader.classList.remove('visible');
+    }
+}
+
+function handlePortMessage(msg) {
+    if (msg.action === 'MESSAGES_UPDATED') {
+        const { messages } = msg.payload;
+        // const { adapter, capabilities } = msg.meta; // Meta usually present
+
+        appState.messages = messages;
+        // UX: Select all by default
+        messages.forEach(m => appState.selectedIds.add(m.id));
+
+        if (msg.meta) {
+             updateConnectionState(true, msg.meta.adapter, msg.meta.capabilities);
+        }
+
+        // Update UI first
+        updateUI();
+        setLoading(false);
+
+        // Wait for DOM to fully render all messages before hiding loader
+        // Wait for DOM to fully render all messages before hiding loader
+        const expectedMessageCount = messages.length;
+        const checkAndHideLoader = () => {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        // Verify all messages are in the DOM
+                        const renderedCards = messageListEl.querySelectorAll('.card');
+                        const domCount = renderedCards.length;
+                        
+                        // Check if we met the expectation OR if expectation was 0 (and we rendered 0)
+                        // Note: If expectation is 0, renderedCards is 0 (empty-state div is not a card)
+                        if (domCount >= expectedMessageCount) {
+                            // Additional small delay to ensure paint is complete
+                            setTimeout(() => {
+                                hideLoader();
+                            }, 100);
+                        } else {
+                            // If not all messages rendered, check again
+                            setTimeout(checkAndHideLoader, 50);
+                        }
+                    });
+                });
+            });
+        };
+
+        // UX Fix: If 0 messages, apply a grace period (2s) because content script often sends
+        // an initial empty state before the actual scan completes. This prevents "No Messages" flash.
+        if (expectedMessageCount === 0) {
+            setTimeout(checkAndHideLoader, 2000);
+        } else {
+            checkAndHideLoader();
+        }
+
+    } else if (msg.action === 'MESSAGES_APPEND') {
+        if (msg.payload && msg.payload.messages) {
+            // Optimized: just push new items
+            appState.messages.push(...msg.payload.messages);
+            updateUI();
+        }
+    } else if (msg.action === 'SCAN_COMPLETE') {
+        setLoading(false);
+        // Keep loader visible during scan complete - messages will update next
+        // Loader will be hidden when MESSAGES_UPDATED arrives
+
+    } else if (msg.action === 'EXTENSION_READY') {
+        setLoading(false);
+        const { adapter, capabilities, status } = msg.meta;
+
+        if (status === 'idle') {
+            // Adapted connected but on unsupported page (e.g. Home)
+             statusBadgeEl.textContent = 'Ready (Idle)';
+             statusBadgeEl.style.backgroundColor = '';
+             statusBadgeEl.style.color = '';
+             messageListEl.innerHTML = '<div class="empty-state">Select a chat</div>';
+             // But simpler: just treat as connected but maybe restricted capabilities
+             updateConnectionState(true, adapter, { scan: false }); // Disable scan on home
+             hideLoader();
+        } else {
+            updateConnectionState(true, adapter, capabilities);
+            requestMessages();
+            // Loader will be hidden when MESSAGES_UPDATED arrives
+        }
+    }
+}
 
 
 function requestMessages() {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs[0]?.id) {
-             chrome.tabs.sendMessage(tabs[0].id, { action: 'GET_MESSAGES' })
-                .then(() => {
-                    if (statusBadgeEl.textContent === 'Unsupported Tab') {
-                         statusBadgeEl.textContent = 'Ready';
-                         statusBadgeEl.style.backgroundColor = ''; 
-                    }
-                })
-                .catch(() => {});
-        }
-    });
+    if (activePort) {
+        try {
+            activePort.postMessage({ action: 'GET_MESSAGES' });
+        } catch(e) { console.warn('Failed to request messages', e); }
+    }
 }
-
-// Connection Retry Logic
-let retryCount = 0;
-const MAX_RETRIES = 5;
-
-function ensureConnection() {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (!tabs[0]?.id) return;
-        
-        chrome.tabs.sendMessage(tabs[0].id, { action: 'PING' })
-            .then((response) => {
-                if (response && response.status === 'pong') {
-                    currentAdapterName = response.adapter;
-                    requestMessages(); 
-                }
-            })
-            .catch(() => {
-                if (retryCount < MAX_RETRIES) {
-                    retryCount++;
-                    setTimeout(ensureConnection, 1000);
-                } else {
-                    statusBadgeEl.textContent = 'Unsupported Tab';
-                    statusBadgeEl.style.backgroundColor = 'var(--md-sys-color-outline-variant)';
-                }
-            });
-    });
-}
-
-// Initial Load
-// ensureConnection(); // Moved to initExtension
 
 // Header Loading State
 const headerGroup = document.getElementById('headerGroup');
@@ -396,36 +541,21 @@ function setLoading(isLoading) {
 }
 
 quickScanBtn?.addEventListener('click', () => {
-     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs[0]?.id) {
-             setLoading(true);
-             chrome.tabs.sendMessage(tabs[0].id, { action: 'SCAN_FULL_CHAT' })
-                .then(() => {
-                     scanProgressEl.classList.add('active');
-                     scanProgressEl.style.display = 'block';
-                     analytics.trackEvent('scan_start', { platform: currentAdapterName });
-                })
-                .catch(() => {
-                    setLoading(false);
-                    alert("Could not start scan. Try refreshing the page.");
-                });
-        }
-    });
+     if (activePort) {
+         setLoading(true);
+         activePort.postMessage({ action: 'SCAN_FULL_CHAT' });
+         // We rely on async handlers for success/fail feedback
+     } else {
+         alert("Not connected to a chat page.");
+     }
 });
 
-stopScanBtn.addEventListener('click', () => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs[0]?.id) {
-             chrome.tabs.sendMessage(tabs[0].id, { action: 'STOP_SCAN' });
-             analytics.trackEvent('scan_cancel');
-        }
-    });
-});
 
 quickRefreshBtn?.addEventListener('click', () => {
     setLoading(true);
     chrome.tabs.reload();
-    setTimeout(() => setLoading(false), 2000);
+    // Re-connection will happen automatically via onUpdated listener
+    setTimeout(() => setLoading(false), 2000); // Failsafe
 });
 
 // --- Feature Logic (Copy, Select, Hide) ---
@@ -474,12 +604,10 @@ copyAllBtn.addEventListener('click', () => {
     if (selectedMsgs.length === 0) return;
 
     const textToCopy = selectedMsgs.map(m => m.text).join('\n\n---\n\n');
-    analytics.trackEvent('copy_selected', { count: selectedMsgs.length });
     
     navigator.clipboard.writeText(textToCopy);
     
     navigator.clipboard.writeText(textToCopy);
-    analytics.trackEvent('copy_selected', { count: selectedMsgs.length });
     
     // Visual Feedback (Icon Checkmark)
     const iconDiv = copyAllBtn.querySelector('.svg-icon');
@@ -560,43 +688,6 @@ function getFilteredMessages() {
     return msgs;
 }
 
-// Author Toggle Logic
-const toggleButtons = document.querySelectorAll('.segment-btn');
-const glidingPill = document.querySelector('.gliding-pill');
-
-function updateGlidingPill(index) {
-    if (glidingPill) {
-        // Assuming buttons are roughly equal width and container is relative
-        // We translate by index * 100% of the pill's own width (which matches button width)
-        // Or better: index * 36px (fixed width) + some gap if any.
-        // The CSS defines distinct buttons. Let's assume buttons are contiguous.
-        // Actually best generic way:
-        glidingPill.style.transform = `translateX(${index * 100}%)`;
-    }
-}
-
-// Initialize Pill Position based on default 'both' (index 1)
-// We need to find the index of the active button initially
-const initialActiveIndex = Array.from(toggleButtons).findIndex(b => b.classList.contains('active'));
-if (initialActiveIndex !== -1) updateGlidingPill(initialActiveIndex);
-
-
-toggleButtons.forEach((btn, index) => {
-    btn.addEventListener('click', () => {
-        // Update State
-        appState.filter.author = btn.dataset.value;
-        
-        // Update UI Visuals
-        toggleButtons.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        
-        // Animate Pill
-        updateGlidingPill(index);
-        
-        // Re-render
-        updateUI();
-    });
-});
 
 // Helper: Escape HTML
 function safeTextWithHighlight(text, term) {
@@ -628,7 +719,6 @@ function updateUI() {
         clearFilterBtn.style.visibility = 'hidden';
     }
     const hiddenCount = appState.hiddenIds.size;
-    // const hiddenCountEl = document.getElementById('hiddenCount'); // REMOVED
     
     // Fix: Ensure viewBox matches the paths (24x24)
     if (visibilityIcon && visibilityIcon.getAttribute('viewBox') !== '0 0 24 24') {
@@ -638,7 +728,6 @@ function updateUI() {
     // 1. Show/Hide Button Visibility & State
     // showHiddenBtn reference replaced by visibilityActionBtn in toolbar
     visibilityActionBtn.style.display = 'flex'; // Always visible
-    // hiddenCountEl.textContent = hiddenCount; // REMOVED
 
     if (hiddenCount > 0) {
         if (appState.showHidden) {
@@ -679,8 +768,8 @@ function updateUI() {
     const selectedTokens = Math.round(selectedChars / 4);
     
     // Format: Selected / Visible / Total
-    statCharsVal.textContent = `${selectedChars.toLocaleString()} / ${visibleChars.toLocaleString()} / ${totalChars.toLocaleString()}`;
-    statTokensVal.textContent = `~${selectedTokens.toLocaleString()} / ~${visibleTokens.toLocaleString()} / ~${totalTokens.toLocaleString()}`;
+    statCharsVal.value = `${selectedChars.toLocaleString()} / ${visibleChars.toLocaleString()} / ${totalChars.toLocaleString()}`;
+    statTokensVal.value = `~${selectedTokens.toLocaleString()} / ~${visibleTokens.toLocaleString()} / ~${totalTokens.toLocaleString()}`;
     
     // Fix: Update Selected Pill Count (now 3 stats: Selected / Visible / Total Messages)
     const selectedCountValueEl = document.getElementById('selectedCountValue');
@@ -688,7 +777,7 @@ function updateUI() {
         const totalMsgs = appState.messages.length;
         const visibleMsgs = visibleMessages.length;
         const selectedCount = selectedMsgs.length;
-        selectedCountValueEl.textContent = `${selectedCount} / ${visibleMsgs} / ${totalMsgs}`;
+        selectedCountValueEl.value = `${selectedCount} / ${visibleMsgs} / ${totalMsgs}`;
     }
 
     updateCopyButtonLabel();
@@ -728,6 +817,9 @@ function updateUI() {
     if (renderSignature === updateUI.lastSignature) return;
     updateUI.lastSignature = renderSignature;
     
+    // Update List Container Mode
+    messageListEl.className = `message-list mode-${appState.filter.author}`;
+
     if (visibleMessages.length === 0) {
         messageListEl.innerHTML = '<div class="empty-state">No messages found.</div>';
         return;
@@ -738,8 +830,13 @@ function updateUI() {
         const isHidden = appState.hiddenIds.has(msg.id);
         const isSelected = appState.selectedIds.has(msg.id);
         
+        // Author Logic
+        const isUser = msg.author === 'user';
+        const typeClass = isUser ? 'type-user' : 'type-ai';
+        const authorLabel = isUser ? 'User' : 'AI';
+        
         const card = document.createElement('div');
-        card.className = `card ${isHidden ? 'hidden-message' : ''}`;
+        card.className = `card ${typeClass} ${isHidden ? 'hidden-message' : ''}`;
         
         const isLong = msg.text.length > 300;
         const previewText = msg.text.substring(0, 300) + (isLong ? '...' : '');
@@ -754,6 +851,7 @@ function updateUI() {
             <div class="card-header">
                 <div class="card-header-actions">
                      <input type="checkbox" class="select-checkbox" data-id="${msg.id}" ${isSelected ? 'checked' : ''}>
+                     <span class="author-label">${authorLabel}</span>
                      <span>#${msg.index + 1} • ${msg.charCount} chars</span>
                 </div>
                 <div class="card-header-actions">
@@ -794,7 +892,6 @@ function updateUI() {
         const btn = card.querySelector('.copy-btn-small');
         btn?.addEventListener('click', () => {
             navigator.clipboard.writeText(msg.text);
-            analytics.trackEvent('copy_single', { charCount: msg.text.length });
             
             // Visual Feedback (Checkmark)
             const iconDiv = btn.querySelector('.svg-icon');
@@ -839,13 +936,74 @@ function updateUI() {
     });
 }
 
-function updateScanButton(canScan) {
-    if (quickScanBtn) {
-        quickScanBtn.style.display = canScan ? 'flex' : 'none';
-        // Force flex if it was hidden
+function updateConnectionState(isConnected, adapter = '', capabilities = {}) {
+    // 1. Badge & Adapter Name
+    if (isConnected) {
+        statusBadgeEl.textContent = adapter || 'Ready';
+        // Clear inline styles to use theme defaults
+        statusBadgeEl.style.backgroundColor = '';
+        statusBadgeEl.style.color = '';
+        currentAdapterName = adapter;
+    } else {
+        statusBadgeEl.textContent = 'Unsupported Tab';
+        statusBadgeEl.style.backgroundColor = 'var(--color-border)';
+        statusBadgeEl.style.color = 'var(--color-text-muted)';
+        currentAdapterName = '';
+    }
+
+    // 2. Buttons Visibility
+    // Helper to toggle hidden class
+    const toggleBtn = (btn, show) => {
+        if (!btn) return;
+        if (show) {
+            btn.classList.remove('hidden');
+            btn.style.display = 'flex';
+        } else {
+            btn.classList.add('hidden');
+            btn.style.display = 'none';
+        }
+    };
+
+    // Refresh: Always show (removed condition)
+    // toggleBtn(quickRefreshBtn, isConnected);
+
+    // Scan: Show if connected AND capable
+    toggleBtn(quickScanBtn, isConnected && capabilities?.scan);
+
+    // 3. Platform List vs Message List (Unsupported State OR Home Page)
+    // Logic: Show Platform List if NOT connected OR (Connected but on Home Page)
+    let isHomePage = false;
+    if (isConnected && appState.currentUrl) {
+        try {
+            const urlObj = new URL(appState.currentUrl);
+            // Check if path is empty or just slash
+            // e.g. https://chatgpt.com/ -> /
+            isHomePage = urlObj.pathname === '/' || urlObj.pathname === '';
+        } catch (e) { console.error(e); }
+    }
+
+    if (isConnected && !isHomePage) {
+        // Connected AND NOT Home Page -> Show Messages (Chat view)
+        if (platformList) platformList.classList.add('hidden');
+        if (messageListEl) messageListEl.classList.remove('hidden');
+    } else {
+        // Unsupported OR Home Page -> Show Platform List
+        if (platformList) platformList.classList.remove('hidden');
+        if (messageListEl) messageListEl.classList.add('hidden');
+        
+        // If connected but home page, update badge and empty message
+        if (isConnected && isHomePage) {
+             statusBadgeEl.textContent = 'Ready (Home)';
+             statusBadgeEl.style.backgroundColor = '';
+             statusBadgeEl.style.color = '';
+             messageListEl.innerHTML = '<div class="empty-state">Select a chat</div>';
+        }
     }
 }
+
+// Deprecated: updateScanButton merged into updateConnectionState
+// function updateScanButton(canScan) { ... } 
 updateUI.lastSignature = '';
 
 // Start
-authService.init();
+initExtension();

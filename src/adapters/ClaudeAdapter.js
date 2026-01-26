@@ -1,5 +1,7 @@
 import { generateMessageHash, generateOccurrenceKey } from '../shared/hash.js';
-import { normalizeText } from '../shared/normalize.js';
+import { normalizeText, findScrollContainer } from '../shared/dom.js';
+import { createDebouncedObserver } from '../shared/observer.js';
+import { scrollUpRecursively } from '../shared/scroller.js';
 
 /**
  * @implements {import('../shared/types').PlatformAdapter}
@@ -25,25 +27,29 @@ export class ClaudeAdapter {
     const messages = [];
     const conversationId = this.getConversationId(window.location.href) || 'unknown';
     
-    // Selectors to try (most specific to least specific)
-    // We want ALL messages now.
-    const selectors = [
-        '[data-message-author]', // Catches both "user" and "assistant"
-        '.font-user-message, .font-claude-message', // Fallback class based
-        '[data-testid="user-message"], [data-testid="claude-message"]'
-    ];
+    const selectorString = [
+        '.font-user-message', 
+        '.\\!font-user-message', 
+        '[data-testid="user-message"]',
+        '.font-claude-response', 
+        '[data-testid="claude-message"]',
+        '[data-message-author]'
+    ].join(', ');
+
+    const nodes = document.querySelectorAll(selectorString);
+    const messageNodes = Array.from(nodes);
     
-    let messageNodes = [];
-    for (const sel of selectors) {
-        const nodes = document.querySelectorAll(sel);
-        if (nodes.length > 0) {
-            messageNodes = Array.from(nodes);
-            break; 
-        }
-    }
-    
+    const occurrenceMap = new Map();
+
     for (const [index, node] of messageNodes.entries()) {
-        const rawText = node.innerText || node.textContent; 
+        // Clone node to manipulate it without affecting the DOM
+        const clone = node.cloneNode(true);
+        
+        // Remove Chain of Thought / Reasoning blocks (identified by .font-ui)
+        const thinkingBlocks = clone.querySelectorAll('.font-ui');
+        thinkingBlocks.forEach(block => block.remove());
+
+        const rawText = clone.innerText || clone.textContent; 
         const text = normalizeText(rawText);
         if (!text) continue;
 
@@ -51,12 +57,20 @@ export class ClaudeAdapter {
         let author = 'assistant';
         if (node.getAttribute('data-message-author') === 'user' || 
             node.classList.contains('font-user-message') ||
+            node.classList.contains('!font-user-message') ||
             node.matches('[data-testid="user-message"]')) {
             author = 'user';
+        } else if (node.classList.contains('font-claude-response')) {
+             author = 'assistant';
         }
 
         const hash = await generateMessageHash(text);
-        const id = generateOccurrenceKey(hash, index);
+        
+        // Occurrence-based ID
+        const occurrenceIndex = occurrenceMap.get(hash) || 0;
+        occurrenceMap.set(hash, occurrenceIndex + 1);
+        
+        const id = generateOccurrenceKey(hash, occurrenceIndex);
 
         messages.push({
             id,
@@ -76,68 +90,34 @@ export class ClaudeAdapter {
   observe(callback) {
      if (this.observer) return;
      
-     const target = document.querySelector('[class*="ChatMessageList"], [class*="scroller"]') || document.body;
-
-     let timeoutId;
-     const debouncedCallback = () => {
-        clearTimeout(timeoutId);
-        timeoutId = setTimeout(() => {
-            callback();
-        }, 1000);
-     };
-
-     this.observer = new MutationObserver((mutations) => {
-        debouncedCallback();
-     });
-
-     this.observer.observe(target, { childList: true, subtree: true });
+     // Stricter target: typically the scrollable list
+     const target = this.findScrollContainer() || document.querySelector('[class*="ChatMessageList"], [class*="scroller"]') || document.body;
+     
+     this.observer = createDebouncedObserver(target, callback);
   }
 
   async scanFullChat(options) {
       if (this.isScanning) return;
       this.isScanning = true;
 
-      const scrollContainer = this.findScrollContainer();
+      // Note: Claude has specific scroll containers sometimes, but shared finder
+      // usually catches scroller classes too.
+      // But let's rely on shared finder first.
+      const scrollContainer = findScrollContainer(document);
+
       if (!scrollContainer) {
           console.warn("Keimenon: Could not find scroll container for Claude.");
           this.isScanning = false;
           return;
       }
 
-      let noChangeCount = 0;
-      let lastScrollHeight = scrollContainer.scrollHeight;
-
       try {
-          while (!options.shouldStop() && noChangeCount < 5) {
-              scrollContainer.scrollTop -= 500; 
-              
-              await new Promise(r => setTimeout(r, 800));
-
-              const newScrollHeight = scrollContainer.scrollHeight;
-              if (Math.abs(newScrollHeight - lastScrollHeight) < 10) {
-                  noChangeCount++;
-              } else {
-                  noChangeCount = 0;
-                  lastScrollHeight = newScrollHeight;
-                  // Spec: After each increment, rescan for new user messages.
-                  // The observer *should* catch this if we are observing the list.
-                  // But we can also call options.onProgress if provided, or rely on mutation observer callback.
-              }
-              
-              if (scrollContainer.scrollTop === 0) {
-                  await new Promise(r => setTimeout(r, 1000));
-                  if (scrollContainer.scrollTop === 0 && scrollContainer.scrollHeight === lastScrollHeight) {
-                      break; 
-                  }
-              }
-          }
+          await scrollUpRecursively(scrollContainer, {
+              shouldStop: options.shouldStop
+          });
       } finally {
           this.isScanning = false;
       }
-  }
-
-  findScrollContainer() {
-      return document.querySelector('.overflow-y-auto[class*="flex-1"]') || document.documentElement;
   }
 
   disconnect() {

@@ -1,5 +1,7 @@
 import { generateMessageHash, generateOccurrenceKey } from '../shared/hash.js';
-import { normalizeText } from '../shared/normalize.js';
+import { normalizeText, findScrollContainer } from '../shared/dom.js';
+import { createDebouncedObserver } from '../shared/observer.js';
+import { scrollUpRecursively } from '../shared/scroller.js';
 
 /**
  * @implements {import('../shared/types').PlatformAdapter}
@@ -30,6 +32,8 @@ export class ChatGPTAdapter {
     let nodes = Array.from(this.context.querySelectorAll('[data-message-author-role]'));
     
     // Process nodes
+    const occurrenceMap = new Map();
+    
     for (const [index, node] of nodes.entries()) {
         const rawText = node.innerText || node.textContent;
         const text = normalizeText(rawText);
@@ -39,13 +43,18 @@ export class ChatGPTAdapter {
         const author = role === 'user' ? 'user' : 'assistant';
 
         const hash = await generateMessageHash(text);
-        const id = generateOccurrenceKey(hash, index);
+        
+        // Occurrence-based ID (Stable against deletion of siblings)
+        const occurrenceIndex = occurrenceMap.get(hash) || 0;
+        occurrenceMap.set(hash, occurrenceIndex + 1);
+        
+        const id = generateOccurrenceKey(hash, occurrenceIndex);
         
         messages.push({
             id,
             platform: 'chatgpt',
             conversationId,
-            index,
+            index, // Keep global index for sorting/ordering if needed
             text,
             charCount: text.length,
             capturedAt: Date.now(),
@@ -59,30 +68,10 @@ export class ChatGPTAdapter {
   observe(callback) {
     if (this.observer) return;
     
-    const target = this.context.querySelector('main') || this.context.body;
+    // Use the specific container (e.g. .react-scroll-to-bottom) if found, otherwise main/body
+    const target = this.findScrollContainer() || this.context.querySelector('main') || this.context.body;
     
-    let timeoutId;
-    const debouncedCallback = () => {
-        clearTimeout(timeoutId);
-        timeoutId = setTimeout(() => {
-            callback();
-        }, 1000); // 1s debounce
-    };
-
-    this.observer = new MutationObserver((mutations) => {
-        let shouldTrigger = false;
-        for (const mutation of mutations) {
-            if (mutation.addedNodes.length > 0) {
-                shouldTrigger = true;
-                break;
-            }
-        }
-        if (shouldTrigger) {
-            debouncedCallback();
-        }
-    });
-
-    this.observer.observe(target, { childList: true, subtree: true });
+    this.observer = createDebouncedObserver(target, callback);
   }
 
 
@@ -98,61 +87,21 @@ export class ChatGPTAdapter {
       if (this.isScanning) return;
       this.isScanning = true;
 
-      const scrollContainer = this.findScrollContainer();
+      // Use shared finder (defaults to context-aware search)
+      const scrollContainer = findScrollContainer(this.context);
+      
       if (!scrollContainer) {
           console.warn("Keimenon: Could not find scroll container for ChatGPT.");
           this.isScanning = false;
           return;
       }
 
-      let noChangeCount = 0;
-      let lastScrollHeight = scrollContainer.scrollHeight;
-
       try {
-          while (!options.shouldStop() && noChangeCount < 5) {
-              scrollContainer.scrollTop -= 500; 
-              
-              await new Promise(r => setTimeout(r, 800));
-
-              const newScrollHeight = scrollContainer.scrollHeight;
-              if (Math.abs(newScrollHeight - lastScrollHeight) < 10) {
-                  noChangeCount++;
-              } else {
-                  noChangeCount = 0;
-                  lastScrollHeight = newScrollHeight;
-              }
-              
-              if (scrollContainer.scrollTop === 0) {
-                  // Wait a bit to see if more loads
-                  await new Promise(r => setTimeout(r, 1000));
-                  if (scrollContainer.scrollTop === 0 && scrollContainer.scrollHeight === lastScrollHeight) {
-                      break; 
-                  }
-              }
-          }
+          await scrollUpRecursively(scrollContainer, {
+              shouldStop: options.shouldStop
+          });
       } finally {
           this.isScanning = false;
       }
-  }
-
-  findScrollContainer() {
-      // ChatGPT often has a main element or a specific scrollable div
-      // Structure changes often, so we try a few heuristics
-      
-      // 1. Look for the main scrollable conversational area
-      const candidates = this.context.querySelectorAll('div[class*="react-scroll-to-bottom"]');
-      for (const c of candidates) {
-          if (c.scrollHeight > c.clientHeight) return c;
-      }
-
-      // 2. Generic fallback for overflow-y-auto
-      const generic = this.context.querySelectorAll('.overflow-y-auto');
-      for (const g of generic) {
-          if (g.scrollHeight > g.clientHeight && g.innerText.length > 500) {
-              return g;
-          }
-      }
-
-      return this.context.querySelector('main') || this.context.documentElement;
   }
 }

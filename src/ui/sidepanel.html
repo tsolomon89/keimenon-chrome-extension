@@ -9,6 +9,8 @@
 <body>
   <div class="app-container">
 
+
+
     <div class="header-group" id="headerGroup">
         <div class="scan-line"></div>
         
@@ -22,34 +24,39 @@
                  <div class="svg-icon icon-scan"></div>
              </button>
 
-             <!-- Refresh -->
-             <button id="quickRefreshBtn" class="icon-btn" title="Refresh Page">
-                 <div class="svg-icon icon-refresh"></div>
-             </button>
-             
+             <!-- --------- -->
              <!-- Separator -->
+             <!-- --------- -->
              <div class="separator-vertical"></div>
 
              <div style="flex: 1;"></div>
 
              <!-- 3-Way Author Toggle (Segmented Button) -->
-             <div class="segmented-btn-group" id="authorToggleGroup">
-                 <div class="gliding-pill"></div>
-                 <button class="segment-btn active" data-value="user" title="Human Only">
-                     <div class="svg-icon icon-user large"></div>
+             <!-- 3-Way Author Toggle (New Theme System) -->
+             <div class="toggle-track" id="authorToggleGroup" data-active="both">
+                 <div class="slider"></div>
+                 <button class="toggle-btn" data-value="user" title="Human Only">
+                     <div class="svg-icon icon-user"></div>
                  </button>
-                 <button class="segment-btn" data-value="both" title="Both">
-                     <div class="svg-icon icon-both large"></div>
+                 <button class="toggle-btn active" data-value="both" title="Both">
+                     <div class="svg-icon icon-both"></div>
                  </button>
-                 <button class="segment-btn" data-value="assistant" title="AI Only">
-                     <div class="svg-icon icon-bot large"></div>
+                 <button class="toggle-btn" data-value="assistant" title="AI Only">
+                     <div class="svg-icon icon-bot"></div>
                  </button>
              </div>
 
              <div style="flex: 1;"></div>
-             
+
+             <!-- --------- -->
              <!-- Separator -->
+             <!-- --------- --> 
              <div class="separator-vertical"></div>
+
+             <!-- Refresh -->
+             <button id="quickRefreshBtn" class="icon-btn" title="Refresh Page">
+                 <div class="svg-icon icon-refresh"></div>
+             </button>
 
              <!-- Copy -->
              <button id="copyAllBtn" class="icon-btn" title="Copy Selected">
@@ -62,13 +69,6 @@
              </button>
          </div>
 
-        <div id="scanProgress" class="scan-progress" style="display: none;">
-            <div class="scan-progress-text">
-                <div class="scan-dot"></div>
-                <span>Scanning... <span id="scanLog"></span></span>
-            </div>
-            <button id="stopScanBtn" class="action-btn-small">Stop</button>
-        </div>
 
         <!-- Row 3: Search & Actions -->
         <div class="search-row" style="display: flex; gap: 8px; align-items: center;">
@@ -77,11 +77,11 @@
                 <div id="selectAllIcon" class="svg-icon icon-check-empty"></div>
             </button>
 
-            <fieldset class="text-field" style="flex: 1;">
-                <legend class="text-field-legend">Search</legend>
+            <div class="text-field has-icon" style="flex: 1;">
+                <input type="text" id="searchInput" class="search-input" placeholder=" ">
+                <label for="searchInput">Search prompts...</label>
                 <div class="svg-icon icon-search search-icon"></div>
-                <input type="text" id="searchInput" class="search-input" placeholder="Search prompts..." style="border:none; padding: 0; background: transparent; height: 100%;">
-            </fieldset>
+            </div>
 
             <!-- Filter Action -->
             <button id="filterBtn" class="icon-btn" title="Filters">
@@ -97,31 +97,29 @@
         <!-- Row 4: Stats Grid (Read Only) -->
         <div id="statsGrid" class="stats-grid">
             <!-- Selected Stat (Full Width) -->
-            <fieldset class="text-field" id="statSelected" title="Selected Count" style="grid-column: 1 / -1;">
-                <legend class="text-field-legend">Selected</legend>
-                <div class="text-field-content">
-                    <span id="selectedCountValue" class="stat-value">0 / 0 / 0</span>
-                </div>
-            </fieldset>
-            <fieldset class="text-field" title="Character Count">
-                <legend class="text-field-legend">Characters</legend>
-                <span id="statCharsVal" class="stat-value">0 / 0 / 0</span>
-            </fieldset>
-            <fieldset class="text-field" title="Token Count">
-                <legend class="text-field-legend">Tokens</legend>
-                <span id="statTokensVal" class="stat-value">0 / 0 / 0</span>
-            </fieldset>
+            <!-- Selected Stat (Full Width) -->
+            <div class="text-field force-active" id="statSelected" title="Selected Count" style="grid-column: 1 / -1;">
+                <input type="text" readonly value="0 / 0 / 0" id="selectedCountValue" class="stat-value">
+                <label>Selected</label>
+            </div>
+            <div class="text-field force-active" title="Character Count">
+                <input type="text" readonly value="0 / 0 / 0" id="statCharsVal" class="stat-value">
+                <label>Characters</label>
+            </div>
+            <div class="text-field force-active" title="Token Count">
+                <input type="text" readonly value="0 / 0 / 0" id="statTokensVal" class="stat-value">
+                <label>Tokens</label>
+            </div>
         </div>
     </div>
     
     <!-- Actions Dropdown -->
     <div id="actionsMenu" class="dropdown-menu">
-        <button class="menu-item" id="menuAuthAction">Sign Out</button>
+        <!-- Auth Item Removed -->
         <div class="menu-separator"></div>
-        <label class="menu-item" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-            <input type="checkbox" id="analyticsToggle" checked> 
-            <span style="flex: 1">Analytics</span>
-        </label>
+        <button class="menu-item" id="menuThemeBtn">Theme</button>
+        <div class="menu-separator"></div>
+        <!-- Analytics Toggle Removed -->
         <div class="menu-separator"></div>
         <button class="menu-item" id="menuPrivacyBtn">Privacy Policy</button>
         <button class="menu-item" id="menuContactBtn">Contact</button>
@@ -141,11 +139,11 @@
         </div>
         <div style="display: flex; gap: 8px; align-items: center;">
             <!-- Min Length Input -->
-            <fieldset class="text-field" style="flex: 1;">
-                <legend class="text-field-legend">Min Length</legend>
-                <input type="number" id="minLenInput" value="0" min="0" 
-                       style="border:none; padding: 0; background: transparent; height: 100%; width: 100%; font-family: inherit;">
-            </fieldset>
+            <!-- Min Length Input -->
+            <div class="text-field" style="flex: 1;">
+                <input type="number" id="minLenInput" placeholder=" " min="0">
+                <label for="minLenInput">Min Length</label>
+            </div>
 
             <!-- Sort Toggle Button -->
             <button id="sortToggleBtn" class="icon-btn" title="Sort Order: Original">
@@ -154,20 +152,34 @@
         </div>
     </div>
 
-    <div id="messageList" class="message-list">
-      <div class="empty-state">No messages extracted yet.</div>
+    <div class="content-viewport">
+        <!-- Page Loader Moved Here -->
+        <div id="pageLoader" class="page-loader">
+            <div class="loader-spinner"></div>
+            <div class="loader-text">Loading...</div>
+        </div>
+
+        <div id="platformList" class="platform-list hidden">
+            <div class="platform-item" data-url="https://chatgpt.com/" title="Open ChatGPT">
+                <img src="../../assets/platforms/favicon_chatgpt.webp" alt="ChatGPT">
+            </div>
+            <div class="platform-item" data-url="https://claude.ai/" title="Open Claude">
+                <img src="../../assets/platforms/favicon_claude.webp" alt="Claude">
+            </div>
+            <div class="platform-item" data-url="https://gemini.google.com/" title="Open Gemini">
+                <img src="../../assets/platforms/favicon_gemini.webp" alt="Gemini">
+            </div>
+            <div class="platform-item" data-url="https://grok.com/" title="Open Grok">
+                <img src="../../assets/platforms/favicon_grok.webp" alt="Grok">
+            </div>
+        </div>
+
+        <div id="messageList" class="message-list">
+          <div id="emptyState" class="empty-state">No messages extracted yet.</div>
+        </div>
     </div>
     
-    <div id="loginScreen" class="login-screen hidden">
-        <div class="login-icon">K</div>
-        <div class="title" style="margin-bottom: 8px;">Welcome to Keimenon</div>
-        <div style="font-size: 12px; color: var(--md-sys-color-on-surface-variant);">
-            Sign in to start extracting prompts.
-        </div>
-        <button id="googleSignInBtn" class="google-btn">
-            Sign in with Google
-        </button>
-    </div>
+    <!-- Login Screen REMOVED -->
     <!-- Privacy Sheet -->
     <div id="privacySheet" class="bottom-sheet">
         <div class="sheet-header">
@@ -188,16 +200,19 @@
             <button id="closeContactBtn" class="action-btn">Close</button>
         </div>
         <div style="display: flex; flex-direction: column; gap: 12px;">
-            <fieldset class="text-field">
-                <legend class="text-field-legend">Name</legend>
-                <input type="text" placeholder="Your Name" style="border:none; width: 100%; background: transparent; color: inherit;">
-            </fieldset>
-            <fieldset class="text-field">
-                <legend class="text-field-legend">Message</legend>
-                <input type="text" placeholder="How can we help?" style="border:none; width: 100%; background: transparent; color: inherit;">
-            </fieldset>
-             <button class="action-btn" style="background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); justify-content: center; width: 100%; margin-top: 8px;">
-                Send Message
+            <div class="text-field">
+                 <select id="contactSubject" class="select-input">
+                    <option value="Bug / Error Report">Bug / Error Report</option>
+                    <option value="Feature Requests">Feature Requests</option>
+                    <option value="General Support">General Support</option>
+                </select>
+                <label for="contactSubject" style="top: 8px; font-size: 10px;">Subject</label>
+                <!-- Custom Arrow -->
+                <div class="svg-icon icon-arrow-down" style="position: absolute; right: 12px; top: 18px; pointer-events: none; opacity: 0.5;"></div>
+            </div>
+            
+             <button id="sendEmailBtn" class="action-btn" style="background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); justify-content: center; width: 100%; margin-top: 8px;">
+                Send Email
             </button>
         </div>
     </div>
@@ -214,9 +229,32 @@
             <div style="color: var(--md-sys-color-on-surface-variant);">
                 Support the development of Keimenon Lite.
             </div>
-            <button class="action-btn" style="background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); justify-content: center; width: 100%;">
+            <button id="confirmDonateBtn" class="action-btn" style="background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); justify-content: center; width: 100%;">
                 Buy me a Coffee
             </button>
+        </div>
+    </div>
+    
+    <!-- Theme Sheet -->
+    <div id="themeSheet" class="bottom-sheet">
+        <div class="sheet-header">
+            <div style="width: 36px;"></div>
+            <span class="sheet-title">Appearance</span>
+            <button id="closeThemeBtn" class="action-btn">Done</button>
+        </div>
+        <div id="themeSelectGrid">
+             <button class="theme-option-btn" data-theme="solid-dark">Solid Dark</button>
+             <button class="theme-option-btn" data-theme="solid-light">Solid Light</button>
+             <button class="theme-option-btn" data-theme="glass-dark">Glass Dark</button>
+             <button class="theme-option-btn" data-theme="glass-light">Glass Light</button>
+             <button class="theme-option-btn" data-theme="neu-dark">Neu Dark</button>
+             <button class="theme-option-btn" data-theme="neu-light">Neu Light</button>
+             <button class="theme-option-btn" data-theme="neon-dark">Neon Dark</button>
+             <button class="theme-option-btn" data-theme="neon-light">Neon Light</button>
+             <button class="theme-option-btn" data-theme="retro-dark">Retro Dark</button>
+             <button class="theme-option-btn" data-theme="retro-light">Retro Light</button>
+             <button class="theme-option-btn" data-theme="outline-dark">Outline Dark</button>
+             <button class="theme-option-btn" data-theme="outline-light">Outline Light</button>
         </div>
     </div>
     

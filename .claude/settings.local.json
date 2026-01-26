@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run build:*)",
+      "Bash(dotnet --version:*)",
+      "Bash(dotnet tool install:*)",
+      "Bash(syntaxer -version:*)",
+      "Bash(where:*)",
+      "Bash(syntaxer -help:*)",
+      "Bash(syntaxer -detect:*)",
+      "Bash(pwsh -File:*)",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File scripts/package.ps1)",
+      "Bash(del test.csx test2.cs)",
+      "Bash(powershell:*)"
+    ]
+  }
+}

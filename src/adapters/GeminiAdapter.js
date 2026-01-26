@@ -1,5 +1,7 @@
 import { generateMessageHash, generateOccurrenceKey } from '../shared/hash.js';
-import { normalizeText } from '../shared/normalize.js';
+import { normalizeText, findScrollContainer } from '../shared/dom.js';
+import { createDebouncedObserver } from '../shared/observer.js';
+import { scrollUpRecursively } from '../shared/scroller.js';
 
 /**
  * @implements {import('../shared/types').PlatformAdapter}
@@ -12,7 +14,7 @@ export class GeminiAdapter {
   }
 
   isSupportedLocation(url) {
-    return url.includes('gemini.google.com');
+    return url.includes('gemini.google.com/app/');
   }
 
   getConversationId(url) {
@@ -37,18 +39,35 @@ export class GeminiAdapter {
     
     // We will scan for both user and model messages.
     let nodes = [];
-    
-    // Broaden selectors to capture both sides
-    // User: .user-query, .query-text
-    // Model: .model-response, .response-text
-    const allNodes = document.querySelectorAll('.user-query, .model-response, .query-text, .response-text, [data-test-id="user-message"], [data-test-id="model-message"]');
-    
+
+    // Query for all message types at once to maintain DOM order
+    const allNodes = document.querySelectorAll(
+        'structured-content-container.model-response-text, ' +
+        '.user-query, ' +
+        '.model-response, ' +
+        '.query-text, ' +
+        '.response-text, ' +
+        '[data-test-id="user-message"], ' +
+        '[data-test-id="model-message"]'
+    );
+
     if (allNodes.length > 0) {
-        nodes = Array.from(allNodes);
+        // Filter out duplicates - if a node is contained within another selected node, skip it
+        nodes = Array.from(allNodes).filter(node => {
+            // Check if this node is a child of any other selected node
+            for (const other of allNodes) {
+                if (other !== node && other.contains(node)) {
+                    return false; // Skip this node, it's contained in another
+                }
+            }
+            return true;
+        });
     } else {
         // Fallback: Try to find message containers by attribute if classes fail
         nodes = Array.from(document.querySelectorAll('[data-message-id]'));
     }
+
+    const occurrenceMap = new Map();
 
     for (const [index, node] of nodes.entries()) {
         const rawText = node.innerText || node.textContent;
@@ -57,15 +76,32 @@ export class GeminiAdapter {
 
         // Determine Author
         let author = 'assistant'; // Default to model
-        if (node.classList.contains('user-query') || 
-            node.classList.contains('query-text') || 
+
+        // Check if it's a user message
+        if (node.classList.contains('user-query') ||
+            node.classList.contains('query-text') ||
             node.matches('[data-test-id="user-message"]') ||
             node.getAttribute('data-is-user') === 'true') {
             author = 'user';
         }
 
+        // Explicitly check if it's an AI message (model response)
+        if (node.tagName.toLowerCase() === 'structured-content-container' ||
+            node.tagName.toLowerCase() === 'message-content' ||
+            node.classList.contains('model-response-text') ||
+            node.classList.contains('model-response') ||
+            node.classList.contains('response-text') ||
+            node.matches('[data-test-id="model-message"]')) {
+            author = 'assistant';
+        }
+
         const hash = await generateMessageHash(text);
-        const id = generateOccurrenceKey(hash, index);
+        
+        // Occurrence-based ID
+        const occurrenceIndex = occurrenceMap.get(hash) || 0;
+        occurrenceMap.set(hash, occurrenceIndex + 1);
+        
+        const id = generateOccurrenceKey(hash, occurrenceIndex);
         
         messages.push({
             id,
@@ -85,31 +121,10 @@ export class GeminiAdapter {
   observe(callback) {
     if (this.observer) return;
     
-    // Main scroll container or body
-    const target = document.querySelector('main') || document.body;
+    // Stricter target
+    const target = findScrollContainer(document) || document.querySelector('main') || document.body;
     
-    let timeoutId;
-    const debouncedCallback = () => {
-        clearTimeout(timeoutId);
-        timeoutId = setTimeout(() => {
-            callback();
-        }, 1000); 
-    };
-
-    this.observer = new MutationObserver((mutations) => {
-        let shouldTrigger = false;
-        for (const mutation of mutations) {
-            if (mutation.addedNodes.length > 0) {
-                shouldTrigger = true;
-                break;
-            }
-        }
-        if (shouldTrigger) {
-            debouncedCallback();
-        }
-    });
-
-    this.observer.observe(target, { childList: true, subtree: true });
+    this.observer = createDebouncedObserver(target, callback);
   }
 
   async scanFullChat(options) {
@@ -117,36 +132,13 @@ export class GeminiAdapter {
     this.isScanning = true;
 
     // Gemini usually scrolls the main window or a specific main container
-    const scrollContainer = document.querySelector('main') || document.documentElement;
-
-    let noChangeCount = 0;
-    let lastScrollHeight = scrollContainer.scrollHeight;
+    // Using shared finder to be robust
+    const scrollContainer = findScrollContainer(document);
 
     try {
-      while (!options.shouldStop() && noChangeCount < 5) {
-        // Scroll up a bit
-        scrollContainer.scrollTop -= 500;
-        
-        await new Promise(r => setTimeout(r, 800));
-
-        const newScrollHeight = scrollContainer.scrollHeight;
-        if (Math.abs(newScrollHeight - lastScrollHeight) < 10) {
-            noChangeCount++;
-        } else {
-            noChangeCount = 0;
-            lastScrollHeight = newScrollHeight;
-        }
-        
-        if (scrollContainer.scrollTop <= 50) {
-             // If we hit top, break.
-             // But sometimes Gemini loads more on top?
-             // Assuming similar behavior to ChatGPT for now.
-             await new Promise(r => setTimeout(r, 1000));
-             if (scrollContainer.scrollTop <= 50 && scrollContainer.scrollHeight === lastScrollHeight) {
-                 break; 
-             }
-        }
-      }
+        await scrollUpRecursively(scrollContainer, {
+            shouldStop: options.shouldStop
+        });
     } finally {
       this.isScanning = false;
     }

@@ -2,55 +2,49 @@
 
 **Effective Date:** January 24, 2026
 
-## 1. Formal Privacy Policy
+At Keimenon, we believe that **privacy is a feature, not an option**. Keimenon Lite is architected from the ground up to ensure that your conversation data remains 100% under your control.
 
-**Keimenon Lite** ("the Extension") is a browser extension designed to help users extract, format, and archive their own conversations from supported AI chat platforms (e.g., ChatGPT, Claude, Gemini, Grok). This policy outlines how unique data is handled.
+## 1. Zero-Knowledge Architecture
 
-### A. Data Processing & Storage
-*   **Local Processing:** All chat extraction, formatting, and file generation occur locally within the user's browser.
-*   **No Remote Server:** The Extension does not transmit, proxy, or store user content on any external server.
-*   **No Model Inference:** The Extension does not perform AI inference or analysis on user data; it strictly formats existing text.
-*   **Transient Memory:** Extracted data is held in the browser's volatile memory (RAM) only while the side panel is open and is cleared upon closure.
+### Local-Only Processing
+-   **No Remote Servers**: Keimenon Lite does not operate a backend server for data processing.
+-   **Client-Side Execution**: All message extraction, filtering, and formatting logic executes directly within your browser's local JavaScript environment.
+-   **No "Home Calling"**: The extension does not transmit usage data, extracted text, or metadata to Keimenon or any third party.
 
-### B. Information We Do NOT Collect
-*   **Chat Content:** We do not view, collect, or monetize the specific content of your conversations.
-*   **Browsing History:** We do not track websites visited, except to detect if the *current* active tab is a supported chat platform within the extension's declared permissions.
-*   **Personal Identifiers:** We do not collect names, IP addresses, or account credentials.
+### Transient Memory Model
+-   **Volatile Storage**: Extracted messages are stored in your browser’s Random Access Memory (RAM) only.
+-   **Lifecycle**: Data exists only while the extension Side Panel is open. Closing the panel or the tab instantly wipes the extracted data from memory.
+-   **No Persistent Storage**: We do not write your chat logs to `localStorage`, `IndexedDB`, or cookies.
 
-### C. Optional Data Collection
-*   **Email Address:** Users may voluntarily provide an email address to subscribe to a mailing list. This is strictly opt-in.
-*   **Diagnostics:** Users may opt-in to share minimal, anonymous reliability data (e.g., crash counts). This is disabled by default and contains no user content.
+## 2. Information We Do Not Collect
 
-### D. Data Retention
-Since we do not store your data on our servers, we have no data retention policy for user content. Any files downloaded by the Extension are stored on your local device and managed by you.
+To be explicitly clear, we have **technically impossible** access to:
+1.  **Your Chat Content**: We cannot see, read, or analyze your prompts or the AI's responses.
+2.  **Your Identity**: We do not collect email addresses, user IDs, IP addresses, or browser fingerprints.
+3.  **Your History**: We check the current URL *only* to determine if a compatible adapter should be loaded (e.g., "Is this ChatGPT?"). We do not track your browsing history across other sites.
 
-### E. User Rights & Control
-*   **Opt-Out:** Users can decline all optional data collection.
-*   **Data Removal:** Deleting the extension removes all local temporary data associated with it.
+## 3. Chrome Permissions Explained
 
-### F. Contact
-For privacy inquiries or concerns, please report an issue on our public repository or contact us at `security@keimenon.com`.
+We request the minimum set of permissions necessary to function:
 
----
+| Permission | Justification |
+| :--- | :--- |
+| `sidePanel` | Required to display the user interface alongside your chat window. |
+| `scripting` / `activeTab` | Required to inject the content script that reads the DOM of the *current* tab to extract user messages. |
+| `storage` | Used strictly for **UI Preferences** (e.g., saving your "Dark Mode" setting or "Last Sort Order"). **Never** used for chat content. |
 
-## 2. In Plain English: A Human Note on Privacy
+## 4. Third-Party Services
 
-Hello, I am the developer of Keimenon Lite. I want to be crystal clear about my intentions with this software:
+Since the extension runs locally, there are no third-party data processors involved in the core functionality.
+-   **No Analytics**: We do not use Google Analytics, Mixpanel, or similar trackers.
+-   **No Advertising**: The extension is ad-free and tracking-free.
 
-*   **I am not interested in your prompts or conversations.** I built this tool because I wanted a way to save my *own* chats, and I assume you want to keep yours private too.
-*   **I do not spy on you.** The code runs entirely on your machine. I don't see what you type, and I don't see what the AI answers.
-*   **No hidden uploads.** There is no "backend" server secretly collecting your logs.
-*   **Opt-in means Opt-in.** If I ask for your email for a newsletter, it’s because I want to tell you about updates. I won't spam you or sell the list.
-*   **Safety First.** I try to write secure code. If something ever looks wrong, suspicious, or unsafe, please contact me immediately. I will make a good-faith effort to fix security issues quickly.
+## 5. Security Vulnerability Reporting
 
-The intent of the project is to remain local-first and respectful of user data.
+We value the security community's help in keeping our software safe. If you discover a vulnerability:
+-   **Email**: `security@keimenon.com`
+-   **Policy**: We pledge to investigate and remediate verified issues promptly. Please do not attach sensitive personal data to your reports.
 
----
+## 6. Updates to This Policy
 
-## 3. Security & Vulnerability Reporting
-
-We welcome responsible disclosure of security vulnerabilities.
-
-*   **Contact:** Please email `security@keimenon.com`.
-*   **Content:** Do not include sensitive personal data (e.g., actual private chat logs) in your report unless strictly necessary to reproduce a bug.
-*   **Response:** We review all reports and will address confirmed vulnerabilities in good faith and as quickly as possible.
+We may update this policy to reflect changes in our technical architecture or legal requirements. Since we do not collect contact info, we encourage users to check this repository for updates. Major changes will be highlighted in the extension's changelog.

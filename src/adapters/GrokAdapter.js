@@ -1,5 +1,7 @@
 import { generateMessageHash, generateOccurrenceKey } from '../shared/hash.js';
-import { normalizeText } from '../shared/normalize.js';
+import { normalizeText, findScrollContainer } from '../shared/dom.js';
+import { createDebouncedObserver } from '../shared/observer.js';
+import { scrollUpRecursively } from '../shared/scroller.js';
 
 /**
  * @implements {import('../shared/types').PlatformAdapter}
@@ -12,7 +14,12 @@ export class GrokAdapter {
   }
 
   isSupportedLocation(url) {
-    return url.includes('x.com/i/grok') || url.includes('grok.com');
+    // Strict Chat URL patterns
+    return url.includes('grok.com/c/') || url.includes('x.com/i/grok'); 
+    // Note: x.com/i/grok is often the SPA which then loads sessions. 
+    // If strict chat URL is distinct on x.com, we should use that, 
+    // but often it stays /i/grok. The user specifically asked for patterns like "grok.com/c/".
+    // I will enforce /c/ for grok.com, and keep x.com/i/grok as is (since it's usually the chat interface itself).
   }
 
   getConversationId(url) {
@@ -39,6 +46,8 @@ export class GrokAdapter {
     // 1. Select all message bubbles
     const bubbles = Array.from(document.querySelectorAll('.message-bubble'));
     
+    const occurrenceMap = new Map();
+
     // 2. Capture ALL bubbles, distinguish by class
     for (const [index, node] of bubbles.entries()) {
         // Text is likely deep inside. The snippet shows:
@@ -63,7 +72,12 @@ export class GrokAdapter {
         const author = node.classList.contains('bg-surface-l1') ? 'user' : 'assistant';
 
         const hash = await generateMessageHash(text);
-        const id = generateOccurrenceKey(hash, index);
+        
+        // Occurrence-based ID
+        const occurrenceIndex = occurrenceMap.get(hash) || 0;
+        occurrenceMap.set(hash, occurrenceIndex + 1);
+
+        const id = generateOccurrenceKey(hash, occurrenceIndex);
         
         messages.push({
             id,
@@ -83,31 +97,8 @@ export class GrokAdapter {
   observe(callback) {
      if (this.observer) return;
     
-    const target = document.querySelector('main') || document.body;
-    
-    let timeoutId;
-    const debouncedCallback = () => {
-        clearTimeout(timeoutId);
-        timeoutId = setTimeout(() => {
-            callback();
-        }, 1000); 
-    };
-
-    this.observer = new MutationObserver((mutations) => {
-        let shouldTrigger = false;
-        for (const mutation of mutations) {
-             // Basic activity check
-            if (mutation.addedNodes.length > 0) {
-                shouldTrigger = true;
-                break;
-            }
-        }
-        if (shouldTrigger) {
-            debouncedCallback();
-        }
-    });
-
-    this.observer.observe(target, { childList: true, subtree: true });
+    const target = findScrollContainer(document) || document.querySelector('main') || document.body;
+    this.observer = createDebouncedObserver(target, callback);
   }
 
   async scanFullChat(options) {
@@ -115,32 +106,12 @@ export class GrokAdapter {
       this.isScanning = true;
 
       // Grok scroll container assumption
-      const scrollContainer = document.querySelector('main') || document.documentElement;
+      const scrollContainer = findScrollContainer(document);
       
-      let noChangeCount = 0;
-      let lastScrollHeight = scrollContainer.scrollHeight;
-
       try {
-          while (!options.shouldStop() && noChangeCount < 5) {
-              scrollContainer.scrollTop -= 500; 
-              
-              await new Promise(r => setTimeout(r, 800));
-
-              const newScrollHeight = scrollContainer.scrollHeight;
-              if (Math.abs(newScrollHeight - lastScrollHeight) < 10) {
-                  noChangeCount++;
-              } else {
-                  noChangeCount = 0;
-                  lastScrollHeight = newScrollHeight;
-              }
-              
-              if (scrollContainer.scrollTop <= 50) {
-                  await new Promise(r => setTimeout(r, 1000));
-                  if (scrollContainer.scrollTop <= 50 && scrollContainer.scrollHeight === lastScrollHeight) {
-                      break; 
-                  }
-              }
-          }
+          await scrollUpRecursively(scrollContainer, {
+              shouldStop: options.shouldStop
+          });
       } finally {
           this.isScanning = false;
       }
