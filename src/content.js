@@ -136,6 +136,10 @@ function handleNewConnection(port) {
     });
 }
 
+let isStartupPhase = false;
+let startupRetries = 0;
+const MAX_STARTUP_RETRIES = 10; // Increased to 10 (approx 5s coverage) based on user feedback
+
 function startSession() {
     if (!adapter) return;
     console.log('[Keimenon] Starting observation session.');
@@ -153,25 +157,45 @@ function startSession() {
         });
     }
 
-    // Initial extraction
-    extractAndSend();
-    
-    // Warm-up Polling: Retry scanning 3 times over 1.5 seconds to catch SPA rendering lag
-    // This fixes the "Black Screen" issue where URL changes before DOM is ready
-    let retries = 0;
-    const warmUp = setInterval(() => {
-        retries++;
-        extractAndSend();
-        if (retries >= 3) clearInterval(warmUp);
-    }, 500);
+    // Reset Tracking
+    isStartupPhase = true;
+    startupRetries = 0;
+
+    // Start robust startup sequence
+    attemptStartupExtraction();
 
     // Start Observer
-    // Delay observer attachment slightly to ensure we target the *new* container if possible?
-    // No, standard observe is fine, but we might need to re-find target if it changes.
-    // For now, relies on the fact that mutation on body/main will trigger if we fallback.
     adapter.observe(() => {
-        extractAndSend();
+        // If we get an observation event, immediate extract
+        // This might override the retry loop if it finds something
+        extractAndSend(true); 
     });
+}
+
+async function attemptStartupExtraction() {
+    if (!adapter || !activePort) return;
+    if (!isStartupPhase) return;
+
+    const messages = await adapter.runOnce();
+
+    if (messages.length > 0) {
+        // Success! Found messages.
+        console.log('[Keimenon] Startup success: found messages.');
+        isStartupPhase = false;
+        sendMessagesParams(messages); // Helper to send
+    } else {
+        // No messages yet
+        if (startupRetries < MAX_STARTUP_RETRIES) {
+             console.log(`[Keimenon] Startup retry ${startupRetries + 1}/${MAX_STARTUP_RETRIES}... waiting 500ms`);
+             startupRetries++;
+             setTimeout(attemptStartupExtraction, 500);
+        } else {
+             // Gave up
+             console.log('[Keimenon] Startup exhausted. Sending empty state.');
+             isStartupPhase = false;
+             sendMessagesParams([]); // Send empty
+        }
+    }
 }
 
 function cleanupSession() {
@@ -181,75 +205,91 @@ function cleanupSession() {
     }
     if (extractTimeout) clearTimeout(extractTimeout);
     isScanning = false;
+    isStartupPhase = false;
     stopScan();
 }
 
 let extractTimeout;
 let lastMessages = [];
 
-async function extractAndSend() {
+// Standard extraction for observer events
+async function extractAndSend(fromObserver = false) {
     if (!adapter || !activePort) return;
+    
+    // If we are in startup phase, let the retry loop handle it UNLESS the observer explicitly fired
+    // If observer fired, it implies DOM change, so it's a good time to check.
     
     if (extractTimeout) clearTimeout(extractTimeout);
     extractTimeout = setTimeout(async () => {
         const messages = await adapter.runOnce();
         
-        if (activePort) {
-            try {
-                // Calculate Delta
-                // Optimization: If the new messages strictly extend the old ones (same ID prefix), send Delta.
-                // Otherwise (edits, deletions, reloads), send Full Update.
-                
-                let isAppendOnly = false;
-                let delta = [];
-                
-                if (messages.length > lastMessages.length && lastMessages.length > 0) {
-                    // Check if prefix matches
-                    const prefixLength = lastMessages.length;
-                    const prefixMatch = lastMessages.every((m, i) => m.id === messages[i].id);
-                    
-                    if (prefixMatch) {
-                        isAppendOnly = true;
-                        delta = messages.slice(prefixLength);
-                    }
-                }
-                
-                if (isAppendOnly && delta.length > 0) {
-                    // Send Append Action
-                    activePort.postMessage({
-                        action: "MESSAGES_APPEND",
-                        payload: { messages: delta },
-                        meta: {
-                            count: messages.length,
-                            adapter: adapter.name,
-                            capabilities: {
-                                scan: typeof adapter.scanFullChat === "function"
-                            }
-                        }
-                    });
-                } else {
-                    // Send Full Update (Default)
-                    activePort.postMessage({
-                        action: "MESSAGES_UPDATED",
-                        payload: { messages },
-                        meta: {
-                            count: messages.length,
-                            adapter: adapter.name,
-                            capabilities: {
-                                scan: typeof adapter.scanFullChat === "function"
-                            }
-                        }
-                    });
-                }
-                
-                lastMessages = messages;
+        // If we confirm messages, we exit startup phase
+        if (messages.length > 0 && isStartupPhase) {
+             isStartupPhase = false;
+        }
 
-            } catch (e) {
-                console.warn("[Keimenon] Failed to post message (disconnected?)");
-                cleanupSession();
+        // If we are still in startup phase and messages are 0, DO NOT SEND.
+        // Wait for the retry loop to fail.
+        if (isStartupPhase && messages.length === 0) {
+            return;
+        }
+
+        sendMessagesParams(messages);
+    }, 200);
+}
+
+function sendMessagesParams(messages) {
+    if (!activePort) return;
+    try {
+        // Calculate Delta
+        let isAppendOnly = false;
+        let delta = [];
+        
+        if (messages.length > lastMessages.length && lastMessages.length > 0) {
+            // Check if prefix matches
+            const prefixLength = lastMessages.length;
+            const prefixMatch = lastMessages.every((m, i) => m.id === messages[i].id);
+            
+            if (prefixMatch) {
+                isAppendOnly = true;
+                delta = messages.slice(prefixLength);
             }
         }
-    }, 200);
+        
+        if (isAppendOnly && delta.length > 0) {
+            // Send Append Action
+            activePort.postMessage({
+                action: "MESSAGES_APPEND",
+                payload: { messages: delta },
+                meta: {
+                    count: messages.length,
+                    adapter: adapter.name,
+                    capabilities: {
+                        scan: typeof adapter.scanFullChat === "function"
+                    }
+                }
+            });
+        } else {
+            // Send Full Update (Default)
+            activePort.postMessage({
+                action: "MESSAGES_UPDATED",
+                payload: { messages },
+                meta: {
+                    count: messages.length,
+                    adapter: adapter.name,
+                    capabilities: {
+                        scan: typeof adapter.scanFullChat === "function"
+                    }
+                }
+            });
+        }
+        
+        lastMessages = messages;
+
+    } catch (e) {
+        console.warn("[Keimenon] Failed to post message (disconnected?)");
+        cleanupSession();
+    }
 }
 
 // Updating startScan to use activePort for completion

@@ -7,14 +7,14 @@
   --spacing-lg: 16px;
   --spacing-xl: 24px;
   
-  /* Toggle */
-  --toggle-btn-size: 44px;
-  --toggle-gap: 2px;
-  --toggle-padding: 4px;
-  --toggle-container-radius: 16px;
-  --toggle-track-radius: 12px;
-  --toggle-slider-radius: 10px;
-  --toggle-btn-radius: 8px;
+    /* Toggle */
+    --toggle-btn-size: 44px; /* Still used as min-height reference if needed */
+    --toggle-gap: 12px; /* Wider gap globally */
+    --toggle-padding: 4px;
+    --toggle-container-radius: 16px;
+    --toggle-track-radius: 12px;
+    --toggle-slider-radius: 10px;
+    --toggle-btn-radius: 8px;
   
   /* Text Field (M3) */
   --field-height: 56px;
@@ -762,24 +762,34 @@ body {
     opacity: 0.5;
 }
 
-/* Toggle Component (New Theme System) */
+/* Toggle Component (Dynamic Global System) */
 .toggle-track {
     position: relative;
     display: flex;
+    justify-content: space-between;
     gap: var(--toggle-gap);
     padding: var(--toggle-padding);
     background: var(--bg-surface);
     border-radius: var(--toggle-track-radius);
     box-shadow: var(--shadow-track);
-    border: var(--border-width) solid var(--color-border); 
+    border: var(--border-width) solid var(--color-border);
+    /* Dynamic Sizing */
+    width: auto;
+    min-width: 164px; /* (44px * 3) + 24px + 8px = 164px. Ensures buttons are at least square */
+    flex: 1; /* Try to take available space by default (User requirement) */
 }
 
 .slider {
     position: absolute;
     top: var(--toggle-padding);
-    left: var(--toggle-padding);
-    width: var(--toggle-btn-size);
-    height: var(--toggle-btn-size);
+    /* Left is calculated via transform usually, but with percentage width we anchor to padding-left */
+    left: var(--toggle-padding); 
+    
+    /* Dynamic Width: (100% - padding*2 - gaps) / 3 */
+    /* toggle-gap is 12px. 2 gaps = 24px. padding=4px. 2 pads = 8px. Total deduc = 32px. */
+    width: calc((100% - 32px) / 3);
+    height: calc(100% - 8px); /* Match container height minus padding */
+    
     background: var(--slider-bg);
     border: var(--slider-border, none);
     border-radius: var(--toggle-slider-radius);
@@ -789,20 +799,65 @@ body {
     pointer-events: none;
 }
 
-.toggle-track[data-active="user"] .slider { transform: translateX(0); }
-.toggle-track[data-active="both"] .slider { transform: translateX(var(--slider-offset)); }
-.toggle-track[data-active="assistant"] .slider { transform: translateX(calc(var(--slider-offset) * 2)); }
-/* Fallback indexes */
-.toggle-track[data-active="1"] .slider { transform: translateX(0); }
-.toggle-track[data-active="2"] .slider { transform: translateX(var(--slider-offset)); }
-.toggle-track[data-active="3"] .slider { transform: translateX(calc(var(--slider-offset) * 2)); }
+/* Dynamic Slider Transforms based on percentage */
+/* 
+   Button Width (W) = (100% - 32px)/3
+   Gap (G) = 12px
+   Pos 0: 0
+   Pos 1: W + G
+   Pos 2: 2W + 2G = 2(W+G)
+   
+   We can express W+G as: 
+   ((100% - 32px)/3) + 12px
+   = (100% - 32px + 36px) / 3
+   = (100% + 4px) / 3
+   
+   Is that right?
+   Let Total Width = 300px.
+   Available = 300 - 32 = 268.
+   W = 89.33px.
+   G = 12px.
+   Move 1 = 89.33 + 12 = 101.33px.
+   
+   Formula: calc((100% + 4px) / 3) check: (300 + 4)/3 = 101.33. YES.
+*/
+
+.toggle-track[data-active="user"] .slider,
+.toggle-track[data-active="1"] .slider { 
+    transform: translateX(0); 
+}
+
+.toggle-track[data-active="both"] .slider,
+.toggle-track[data-active="2"] .slider { 
+    transform: translateX(calc((100% + 12px) * 1)); /* Fallback logic? No, let's use the precise calc */
+    transform: translateX(calc(100% + 12px)); /* Relative to slider width? NO. TranslateX % is relative to element size. */
+    
+    /* Wait. translateX(100%) moves it by its OWN width. 
+       Own width W.
+       Target move: W + G.
+       So translateX(W + G).
+       translateX(W * (1 + G/W)). 
+       CSS calc can do: translateX(calc(100% + 12px)). 
+       Yes. 100% is the element's width. + 12px pixels.
+    */
+    transform: translateX(calc(100% + 12px));
+}
+
+.toggle-track[data-active="assistant"] .slider,
+.toggle-track[data-active="3"] .slider { 
+    transform: translateX(calc(200% + 24px));
+}
 
 
 .toggle-btn {
     position: relative;
     z-index: 2;
-    width: var(--toggle-btn-size);
-    height: var(--toggle-btn-size);
+    /* Dynamic sizing */
+    width: auto;
+    min-width: 44px; /* Ensure 1:1 Aspect Ratio at minimum size (matches height) */
+    flex: 1;
+    height: 44px; /* Fixed height for consistency */
+    
     border: none;
     background: transparent;
     cursor: pointer;
@@ -837,7 +892,7 @@ body {
 
 /* Search Row */
 .search-row {
-  padding: 16 16px 8px 16px;
+  padding: 8px 16px 8px 16px;
   display: flex;
   gap: 8px;
   align-items: center;
@@ -1609,5 +1664,62 @@ mark {
     border-radius: 8px; /* Match container */
     display: block;
     pointer-events: none; /* Prevent drag */
+}
+
+/* Small Screen Layout - Responsive Controls */
+@media (max-width: 480px) {
+  .controls-row {
+     flex-wrap: wrap;
+     /* Ensure the container uses full width to allow margin-auto centering */
+     justify-content: flex-start; 
+  }
+
+  /* Force Line Break between Top and Bottom Rows */
+  .controls-row::before {
+      content: "";
+      width: 100%;
+      order: 10;
+  }
+
+  /* --- Top Row Items (Order 1-9) --- */
+  #statusBadge { order: 1; }
+  #quickScanBtn { order: 2; }
+  
+  /* Push Right Side Buttons to the End */
+  #quickRefreshBtn { 
+      order: 3; 
+      margin-left: auto; 
+  }
+  #copyAllBtn { order: 4; }
+  #menuBtn { order: 5; }
+
+  /* --- Bottom Row Items (Order 11+) --- */
+  
+  /* Separator 1 (3rd child) */
+  .controls-row > div:nth-child(3) {
+      order: 11;
+      margin-left: auto !important; /* Centers the group start */
+      margin-right: 0 !important;
+  }
+  
+  /* Toggle Group - Uses global styles now, just fixing order/margins for row */
+  #authorToggleGroup { 
+      order: 12;
+      /* Already flex: 1 globally */
+      margin: 0 8px; /* Gap from separators */
+  }
+
+  /* Separator 2 (7th child) */
+  .controls-row > div:nth-child(7) {
+      order: 13;
+      margin-right: auto !important; /* Push against right edge? Or center group? */
+      margin-left: 0 !important;
+  }
+
+  /* Hide Original Spacers to prevent interference */
+  .controls-row > div:nth-child(4),
+  .controls-row > div:nth-child(6) {
+      display: none !important;
+  }
 }
 

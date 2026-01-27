@@ -20,12 +20,7 @@ The extension accesses the following data purely for **local functionality**:
 *   **Why?**: Necessary to inject the `content.js` script into the active tab to perform the extraction logic.
 *   **Scope**: Restricted strictly to the domains listed in `matches` (e.g., `chatgpt.com`, `claude.ai`).
 
-### `storage`
-*   **Why?**: Used to save **non-sensitive UI state** user preferences.
-*   **Specifics**:
-    *   `theme` (Light/Dark mode)
-    *   `sortPreference` (e.g., "Longest First")
-*   **Constraint**: No User Generated Content (UGC) or chat logs are ever saved to storage.
+
 
 ### `sidePanel`
 *   **Why?**: To render the application interface in the browser's side panel area, avoiding intrusion into the page content itself.

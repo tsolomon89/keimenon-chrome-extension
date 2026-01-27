@@ -130,25 +130,341 @@
     }
   });
 
-  // src/adapters/ChatGPTAdapter.js
-  var ChatGPTAdapter;
-  var init_ChatGPTAdapter = __esm({
-    "src/adapters/ChatGPTAdapter.js"() {
+  // src/adapters/BaseAdapter.js
+  var BaseAdapter;
+  var init_BaseAdapter = __esm({
+    "src/adapters/BaseAdapter.js"() {
       "use strict";
       init_hash();
       init_dom();
       init_observer();
       init_scroller();
-      ChatGPTAdapter = class {
-        constructor(context = document) {
-          this.name = "chatgpt";
+      BaseAdapter = class {
+        /**
+         * @param {string} name - The unique name of the platform (e.g., 'chatgpt').
+         * @param {Document|Element} context - The context to scan (defaults to document).
+         */
+        constructor(name, context = document) {
+          this.name = name;
+          this.context = context;
           this.observer = null;
           this.isScanning = false;
-          this.context = context;
           this.nodeCache = /* @__PURE__ */ new WeakMap();
         }
+        /**
+         * Checks if the current URL is supported by this adapter.
+         * @abstract
+         * @param {string} url 
+         * @returns {boolean}
+         */
         isSupportedLocation(url) {
-          return url.includes("chatgpt.com") || url.includes("chat.openai.com");
+          throw new Error("isSupportedLocation must be implemented by subclass");
+        }
+        /**
+         * @abstract
+         * @returns {Promise<Array<import('../shared/types').Message>>}
+         */
+        async runOnce() {
+          throw new Error("runOnce must be implemented by subclass");
+        }
+        /**
+         * Checks if the platform is currently in a loading state (e.g. initial hydration).
+         * Used to prevent premature "No messages" timeouts.
+         * @returns {boolean}
+         */
+        isLoading() {
+          return false;
+        }
+        /**
+         * Shared helper to resolve message hash from cache or generate new one.
+         * @param {Element} node 
+         * @param {string} text 
+         * @returns {Promise<string>}
+         */
+        async getMessageHash(node, text) {
+          const cached = this.nodeCache.get(node);
+          if (cached && cached.text === text) {
+            return cached.hash;
+          }
+          const hash = await generateMessageHash(text);
+          this.nodeCache.set(node, { text, hash });
+          return hash;
+        }
+        /**
+         * Generates a unique ID for a message based on its hash and occurrence index.
+         * @param {Map<string, number>} occurrenceMap 
+         * @param {string} hash 
+         * @returns {string}
+         */
+        getUniqueId(occurrenceMap, hash) {
+          const occurrenceIndex = occurrenceMap.get(hash) || 0;
+          occurrenceMap.set(hash, occurrenceIndex + 1);
+          return generateOccurrenceKey(hash, occurrenceIndex);
+        }
+        /**
+         * Sets up a debounced observer on the scroll container.
+         * @param {Function} callback 
+         */
+        observe(callback) {
+          if (this.observer) return;
+          const target = this.getScrollContainer() || this.context.querySelector("main") || this.context.body;
+          console.log(`[Keimenon] ${this.name}Adapter.observe starting on target:`, target);
+          this.observer = createDebouncedObserver(target, callback);
+          if (typeof callback === "function") callback();
+        }
+        /**
+         * Cleans up the observer.
+         */
+        disconnect() {
+          if (this.observer) {
+            this.observer.disconnect();
+            this.observer = null;
+          }
+          this.isScanning = false;
+        }
+        /**
+         * Performs a full history scan by scrolling up.
+         * @param {Object} options 
+         */
+        async scanFullChat(options) {
+          if (this.isScanning) return;
+          this.isScanning = true;
+          const scrollContainer = this.getScrollContainer();
+          if (!scrollContainer) {
+            console.warn(`Keimenon: Could not find scroll container for ${this.name}.`);
+            this.isScanning = false;
+            return;
+          }
+          try {
+            await scrollUpRecursively(scrollContainer, {
+              shouldStop: options.shouldStop
+            });
+          } finally {
+            this.isScanning = false;
+          }
+        }
+        /**
+         * Helper to find the scroll container.
+         * can be overridden if a platform needs specific logic.
+         * @returns {Element|null}
+         */
+        getScrollContainer() {
+          return findScrollContainer(this.context);
+        }
+      };
+    }
+  });
+
+  // src/shared/extraction.js
+  function extractMessageContent(root, options = {}) {
+    if (!root) return "";
+    const excludeSelectors = options.excludeSelectors || /* @__PURE__ */ new Set();
+    let buffer = "";
+    function append(str) {
+      buffer += str;
+    }
+    function ensureNewline(count = 1) {
+      let currentNewlines = 0;
+      for (let i = buffer.length - 1; i >= 0; i--) {
+        if (buffer[i] === "\n") currentNewlines++;
+        else break;
+      }
+      const needed = count - currentNewlines;
+      if (needed > 0) {
+        buffer += "\n".repeat(needed);
+      }
+    }
+    function walk(node, context = {}) {
+      if (!node) return;
+      if (node.nodeType === Node.TEXT_NODE) {
+        let val = node.nodeValue;
+        if (context.isPre) {
+          append(val);
+          return;
+        }
+        val = val.replace(/[\r\n]+/g, " ");
+        append(val);
+        return;
+      }
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        for (const selector of excludeSelectors) {
+          if (node.matches && node.matches(selector)) return;
+        }
+        const tagName = node.tagName.toLowerCase();
+        if (node.classList.contains("katex")) {
+          const annotation = node.querySelector('annotation[encoding="application/x-tex"]');
+          if (annotation) {
+            const isDisplay = node.classList.contains("katex-display") || node.parentNode && node.parentNode.classList.contains("katex-display");
+            const tex = annotation.textContent;
+            if (isDisplay) {
+              ensureNewline(2);
+              append("$$" + tex + "$$");
+              ensureNewline(2);
+            } else {
+              append("$" + tex + "$");
+            }
+            return;
+          }
+        }
+        if (tagName === "script" && node.type && node.type.includes("math/tex")) {
+          const tex = node.textContent;
+          const isDisplay = node.type.includes("mode=display");
+          if (isDisplay) {
+            ensureNewline(2);
+            append("$$" + tex + "$$");
+            ensureNewline(2);
+          } else {
+            append("$" + tex + "$");
+          }
+          return;
+        }
+        if (tagName === "br") {
+          append("\n");
+          return;
+        }
+        if (["h1", "h2", "h3", "h4", "h5", "h6"].includes(tagName)) {
+          ensureNewline(2);
+          const level = parseInt(tagName.substring(1));
+          append("#".repeat(level) + " ");
+        }
+        if (tagName === "p" || tagName === "div") {
+          const isFirstInLi = context.inLi && !context.hasContentInLi;
+          if (!isFirstInLi && buffer.length > 0) {
+            ensureNewline(1);
+          }
+        }
+        if (tagName === "ul" || tagName === "ol") {
+          ensureNewline(2);
+        }
+        if (tagName === "li") {
+          ensureNewline(1);
+          const depth = context.listDepth || 0;
+          const indent = "  ".repeat(depth);
+          let marker = "*";
+          if (node.parentNode && node.parentNode.tagName.toLowerCase() === "ol") {
+            let index = 1;
+            let sibling = node.previousElementSibling;
+            while (sibling) {
+              if (sibling.tagName.toLowerCase() === "li") {
+                index++;
+              }
+              sibling = sibling.previousElementSibling;
+            }
+            const startAttr = node.parentNode.getAttribute("start");
+            if (startAttr) {
+              const startVal = parseInt(startAttr, 10);
+              if (!isNaN(startVal)) {
+                index += startVal - 1;
+              }
+            }
+            marker = `${index}.`;
+          }
+          append(`${indent}${marker} `);
+        }
+        if (tagName === "pre") {
+          ensureNewline(2);
+          let lang = "";
+          const codeChild = node.querySelector("code");
+          if (codeChild) {
+            for (const cls of codeChild.classList) {
+              if (cls.startsWith("language-") || cls.startsWith("lang-")) {
+                lang = cls.replace(/^(language-|lang-)/, "");
+                break;
+              }
+            }
+          }
+          append("```" + lang);
+          ensureNewline(1);
+        }
+        const isInlineCode = tagName === "code" && !context.isPre && node.parentNode.tagName.toLowerCase() !== "pre";
+        if (isInlineCode) {
+          append("`");
+        }
+        const isBold = tagName === "b" || tagName === "strong";
+        const isItalic = tagName === "i" || tagName === "em";
+        if (isBold) append("**");
+        if (isItalic) append("*");
+        if (tagName === "blockquote") {
+          ensureNewline(2);
+          append("> ");
+        }
+        if (tagName === "a") {
+          append("[");
+        }
+        const newContext = { ...context };
+        if (tagName === "ul" || tagName === "ol") {
+          newContext.listDepth = (newContext.listDepth || 0) + 1;
+        }
+        if (tagName === "pre") {
+          newContext.isPre = true;
+        }
+        if (tagName === "li") {
+          newContext.inLi = true;
+          newContext.hasContentInLi = false;
+        }
+        if (tagName === "p" || tagName === "div") {
+        }
+        let child = node.firstChild;
+        while (child) {
+          walk(child, newContext);
+          if (context.inLi) {
+            context.hasContentInLi = true;
+          }
+          child = child.nextSibling;
+        }
+        if (tagName === "a") {
+          const href = node.getAttribute("href") || "";
+          append(`](${href})`);
+        }
+        if (isBold) append("**");
+        if (isItalic) append("*");
+        if (isInlineCode) append("`");
+        if (tagName === "pre") {
+          ensureNewline(1);
+          append("```");
+          ensureNewline(2);
+        }
+      }
+    }
+    walk(root);
+    return buffer.trim();
+  }
+  var init_extraction = __esm({
+    "src/shared/extraction.js"() {
+      "use strict";
+    }
+  });
+
+  // src/adapters/ChatGPTAdapter.js
+  var ChatGPTAdapter;
+  var init_ChatGPTAdapter = __esm({
+    "src/adapters/ChatGPTAdapter.js"() {
+      "use strict";
+      init_BaseAdapter();
+      init_dom();
+      init_extraction();
+      ChatGPTAdapter = class extends BaseAdapter {
+        constructor(context = document) {
+          super("chatgpt", context);
+        }
+        isLoading() {
+          const resultStreaming = this.context.querySelector(".result-streaming");
+          if (resultStreaming) return true;
+          return false;
+        }
+        isSupportedLocation(url) {
+          if (!url.includes("chatgpt.com") && !url.includes("chat.openai.com")) {
+            return false;
+          }
+          try {
+            const urlObj = new URL(url);
+            if (urlObj.pathname === "/" || urlObj.pathname === "") {
+              return false;
+            }
+            return urlObj.pathname.startsWith("/c/") || urlObj.pathname.startsWith("/g/") || urlObj.pathname.startsWith("/share/") || urlObj.pathname.startsWith("/chat");
+          } catch (e) {
+            return false;
+          }
         }
         getConversationId(url) {
           const match = url.match(/\/c\/([a-f0-9-]+)/);
@@ -166,17 +482,10 @@
           }
           const occurrenceMap = /* @__PURE__ */ new Map();
           for (const [index, node] of nodes.entries()) {
-            const rawText = node.innerText || node.textContent;
+            const rawText = extractMessageContent(node);
             const text = normalizeText(rawText);
             if (!text) continue;
-            let hash;
-            const cached = this.nodeCache.get(node);
-            if (cached && cached.text === text) {
-              hash = cached.hash;
-            } else {
-              hash = await generateMessageHash(text);
-              this.nodeCache.set(node, { text, hash });
-            }
+            const hash = await this.getMessageHash(node, text);
             const role = node.getAttribute("data-message-author-role");
             let author = "assistant";
             if (role === "user") {
@@ -186,15 +495,12 @@
                 author = "user";
               }
             }
-            const occurrenceIndex = occurrenceMap.get(hash) || 0;
-            occurrenceMap.set(hash, occurrenceIndex + 1);
-            const id = generateOccurrenceKey(hash, occurrenceIndex);
+            const id = this.getUniqueId(occurrenceMap, hash);
             messages.push({
               id,
               platform: "chatgpt",
               conversationId,
               index,
-              // Keep global index for sorting/ordering if needed
               text,
               charCount: text.length,
               capturedAt: Date.now(),
@@ -202,37 +508,6 @@
             });
           }
           return messages;
-        }
-        observe(callback) {
-          if (this.observer) return;
-          const target = findScrollContainer(this.context) || this.context.querySelector("main") || this.context.body;
-          console.log("[Keimenon] ChatGPTAdapter.observe starting on target:", target);
-          this.observer = createDebouncedObserver(target, callback);
-          if (typeof callback === "function") callback();
-        }
-        disconnect() {
-          if (this.observer) {
-            this.observer.disconnect();
-            this.observer = null;
-          }
-          this.isScanning = false;
-        }
-        async scanFullChat(options) {
-          if (this.isScanning) return;
-          this.isScanning = true;
-          const scrollContainer = findScrollContainer(this.context);
-          if (!scrollContainer) {
-            console.warn("Keimenon: Could not find scroll container for ChatGPT.");
-            this.isScanning = false;
-            return;
-          }
-          try {
-            await scrollUpRecursively(scrollContainer, {
-              shouldStop: options.shouldStop
-            });
-          } finally {
-            this.isScanning = false;
-          }
         }
       };
     }
@@ -243,16 +518,16 @@
   var init_ClaudeAdapter = __esm({
     "src/adapters/ClaudeAdapter.js"() {
       "use strict";
-      init_hash();
+      init_BaseAdapter();
       init_dom();
-      init_observer();
-      init_scroller();
-      ClaudeAdapter = class {
-        constructor() {
-          this.name = "claude";
-          this.observer = null;
-          this.isScanning = false;
-          this.nodeCache = /* @__PURE__ */ new WeakMap();
+      init_extraction();
+      ClaudeAdapter = class extends BaseAdapter {
+        constructor(context = document) {
+          super("claude", context);
+        }
+        isLoading() {
+          const loading = this.context.querySelector('[data-testid="loading-indicator"], .loading-spinner');
+          return !!loading;
         }
         isSupportedLocation(url) {
           return url.includes("claude.ai/chat/");
@@ -272,34 +547,23 @@
             '[data-testid="claude-message"]',
             "[data-message-author]"
           ].join(", ");
-          const nodes = document.querySelectorAll(selectorString);
-          const messageNodes = Array.from(nodes);
+          const nodes = Array.from(this.context.querySelectorAll(selectorString));
           const occurrenceMap = /* @__PURE__ */ new Map();
-          for (const [index, node] of messageNodes.entries()) {
+          for (const [index, node] of nodes.entries()) {
             let text;
-            let hash;
-            const clone = node.cloneNode(true);
-            const thinkingBlocks = clone.querySelectorAll(".font-ui");
-            thinkingBlocks.forEach((block) => block.remove());
-            const rawText = clone.innerText || clone.textContent;
+            const rawText = extractMessageContent(node, {
+              excludeSelectors: /* @__PURE__ */ new Set([".font-ui"])
+            });
             text = normalizeText(rawText);
             if (!text) continue;
-            const cached = this.nodeCache.get(node);
-            if (cached && cached.text === text) {
-              hash = cached.hash;
-            } else {
-              hash = await generateMessageHash(text);
-              this.nodeCache.set(node, { text, hash });
-            }
+            const hash = await this.getMessageHash(node, text);
             let author = "assistant";
             if (node.getAttribute("data-message-author") === "user" || node.classList.contains("font-user-message") || node.classList.contains("!font-user-message") || node.matches('[data-testid="user-message"]')) {
               author = "user";
             } else if (node.classList.contains("font-claude-response")) {
               author = "assistant";
             }
-            const occurrenceIndex = occurrenceMap.get(hash) || 0;
-            occurrenceMap.set(hash, occurrenceIndex + 1);
-            const id = generateOccurrenceKey(hash, occurrenceIndex);
+            const id = this.getUniqueId(occurrenceMap, hash);
             messages.push({
               id,
               platform: "claude",
@@ -313,36 +577,6 @@
           }
           return messages;
         }
-        observe(callback) {
-          if (this.observer) return;
-          const target = findScrollContainer(document) || document.querySelector('[class*="ChatMessageList"], [class*="scroller"]') || document.body;
-          this.observer = createDebouncedObserver(target, callback);
-          if (typeof callback === "function") callback();
-        }
-        async scanFullChat(options) {
-          if (this.isScanning) return;
-          this.isScanning = true;
-          const scrollContainer = findScrollContainer(document);
-          if (!scrollContainer) {
-            console.warn("Keimenon: Could not find scroll container for Claude.");
-            this.isScanning = false;
-            return;
-          }
-          try {
-            await scrollUpRecursively(scrollContainer, {
-              shouldStop: options.shouldStop
-            });
-          } finally {
-            this.isScanning = false;
-          }
-        }
-        disconnect() {
-          if (this.observer) {
-            this.observer.disconnect();
-            this.observer = null;
-          }
-          this.isScanning = false;
-        }
       };
     }
   });
@@ -352,16 +586,15 @@
   var init_GrokAdapter = __esm({
     "src/adapters/GrokAdapter.js"() {
       "use strict";
-      init_hash();
+      init_BaseAdapter();
       init_dom();
-      init_observer();
-      init_scroller();
-      GrokAdapter = class {
-        constructor() {
-          this.name = "grok";
-          this.observer = null;
-          this.isScanning = false;
-          this.nodeCache = /* @__PURE__ */ new WeakMap();
+      GrokAdapter = class extends BaseAdapter {
+        constructor(context = document) {
+          super("grok", context);
+        }
+        isLoading() {
+          const loading = this.context.querySelector('[aria-label="Loading"], .spinner');
+          return !!loading;
         }
         isSupportedLocation(url) {
           return url.includes("grok.com/c/") || url.includes("x.com/i/grok");
@@ -374,7 +607,7 @@
         async runOnce() {
           const messages = [];
           const conversationId = this.getConversationId(window.location.href);
-          const bubbles = Array.from(document.querySelectorAll(".message-bubble"));
+          const bubbles = Array.from(this.context.querySelectorAll(".message-bubble"));
           const occurrenceMap = /* @__PURE__ */ new Map();
           for (const [index, node] of bubbles.entries()) {
             const markdownContainer = node.querySelector(".response-content-markdown");
@@ -385,18 +618,9 @@
               text = normalizeText(node.innerText);
             }
             if (!text) continue;
-            let hash;
-            const cached = this.nodeCache.get(node);
-            if (cached && cached.text === text) {
-              hash = cached.hash;
-            } else {
-              hash = await generateMessageHash(text);
-              this.nodeCache.set(node, { text, hash });
-            }
+            const hash = await this.getMessageHash(node, text);
             const author = node.classList.contains("bg-surface-l1") ? "user" : "assistant";
-            const occurrenceIndex = occurrenceMap.get(hash) || 0;
-            occurrenceMap.set(hash, occurrenceIndex + 1);
-            const id = generateOccurrenceKey(hash, occurrenceIndex);
+            const id = this.getUniqueId(occurrenceMap, hash);
             messages.push({
               id,
               platform: "grok",
@@ -410,31 +634,6 @@
           }
           return messages;
         }
-        observe(callback) {
-          if (this.observer) return;
-          const target = findScrollContainer(document) || document.querySelector("main") || document.body;
-          this.observer = createDebouncedObserver(target, callback);
-          if (typeof callback === "function") callback();
-        }
-        async scanFullChat(options) {
-          if (this.isScanning) return;
-          this.isScanning = true;
-          const scrollContainer = findScrollContainer(document);
-          try {
-            await scrollUpRecursively(scrollContainer, {
-              shouldStop: options.shouldStop
-            });
-          } finally {
-            this.isScanning = false;
-          }
-        }
-        disconnect() {
-          if (this.observer) {
-            this.observer.disconnect();
-            this.observer = null;
-          }
-          this.isScanning = false;
-        }
       };
     }
   });
@@ -444,16 +643,17 @@
   var init_GeminiAdapter = __esm({
     "src/adapters/GeminiAdapter.js"() {
       "use strict";
-      init_hash();
+      init_BaseAdapter();
       init_dom();
-      init_observer();
-      init_scroller();
-      GeminiAdapter = class {
-        constructor() {
-          this.name = "gemini";
-          this.observer = null;
-          this.isScanning = false;
-          this.nodeCache = /* @__PURE__ */ new WeakMap();
+      init_extraction();
+      GeminiAdapter = class extends BaseAdapter {
+        constructor(context = document) {
+          super("gemini", context);
+        }
+        isLoading() {
+          const skeletons = this.context.querySelectorAll(".mat-mdc-progress-bar, .loading-skeleton, .shimmer");
+          if (skeletons.length > 0) return true;
+          return false;
         }
         isSupportedLocation(url) {
           return url.includes("gemini.google.com/app/");
@@ -466,7 +666,7 @@
           const messages = [];
           const conversationId = this.getConversationId(window.location.href);
           let nodes = [];
-          const allNodes = document.querySelectorAll(
+          const allNodes = this.context.querySelectorAll(
             'structured-content-container.model-response-text, .user-query, .model-response, .query-text, .response-text, [data-test-id="user-message"], [data-test-id="model-message"]'
           );
           if (allNodes.length > 0) {
@@ -479,32 +679,22 @@
               return true;
             });
           } else {
-            nodes = Array.from(document.querySelectorAll("[data-message-id]"));
+            nodes = Array.from(this.context.querySelectorAll("[data-message-id]"));
           }
           const occurrenceMap = /* @__PURE__ */ new Map();
           for (const [index, node] of nodes.entries()) {
-            const rawText = node.innerText || node.textContent;
+            const rawText = extractMessageContent(node);
             const text = normalizeText(rawText);
             if (!text) continue;
-            let hash;
-            const cached = this.nodeCache.get(node);
-            if (cached && cached.text === text) {
-              hash = cached.hash;
-            } else {
-              hash = await generateMessageHash(text);
-              this.nodeCache.set(node, { text, hash });
-            }
+            const hash = await this.getMessageHash(node, text);
             let author = "assistant";
             if (node.classList.contains("user-query") || node.classList.contains("query-text") || node.matches('[data-test-id="user-message"]') || node.getAttribute("data-is-user") === "true") {
               author = "user";
             }
-            if (node.tagName.toLowerCase() === "structured-content-container" || node.tagName.toLowerCase() === "message-content" || node.classList.contains("model-response-text") || node.classList.contains("model-response") || node.classList.contains("model-response") || // Duplicate check in original?
-            node.classList.contains("response-text") || node.matches('[data-test-id="model-message"]')) {
+            if (node.tagName.toLowerCase() === "structured-content-container" || node.tagName.toLowerCase() === "message-content" || node.classList.contains("model-response-text") || node.classList.contains("model-response") || node.classList.contains("response-text") || node.matches('[data-test-id="model-message"]')) {
               author = "assistant";
             }
-            const occurrenceIndex = occurrenceMap.get(hash) || 0;
-            occurrenceMap.set(hash, occurrenceIndex + 1);
-            const id = generateOccurrenceKey(hash, occurrenceIndex);
+            const id = this.getUniqueId(occurrenceMap, hash);
             messages.push({
               id,
               platform: "gemini",
@@ -517,31 +707,6 @@
             });
           }
           return messages;
-        }
-        observe(callback) {
-          if (this.observer) return;
-          const target = findScrollContainer(document) || document.querySelector("main") || document.body;
-          this.observer = createDebouncedObserver(target, callback);
-          if (typeof callback === "function") callback();
-        }
-        async scanFullChat(options) {
-          if (this.isScanning) return;
-          this.isScanning = true;
-          const scrollContainer = findScrollContainer(document);
-          try {
-            await scrollUpRecursively(scrollContainer, {
-              shouldStop: options.shouldStop
-            });
-          } finally {
-            this.isScanning = false;
-          }
-        }
-        disconnect() {
-          if (this.observer) {
-            this.observer.disconnect();
-            this.observer = null;
-          }
-          this.isScanning = false;
         }
       };
     }
@@ -623,6 +788,7 @@
             console.log("[Keimenon] Navigated to unsupported area of same platform.");
             if (adapter.disconnect) adapter.disconnect();
             if (activePort) {
+              activePort.postMessage({ action: "SESSION_RESET" });
               activePort.postMessage({
                 action: "EXTENSION_READY",
                 meta: { adapter: adapter.name, status: "idle" }
@@ -632,6 +798,9 @@
         } else if (newAdapter) {
           console.log(`[Keimenon] Platform switched to ${newAdapter.name}`);
           if (adapter && adapter.disconnect) adapter.disconnect();
+          if (activePort) {
+            activePort.postMessage({ action: "SESSION_RESET" });
+          }
           adapter = newAdapter;
           if (activePort) startSession();
         } else {
@@ -639,6 +808,7 @@
           if (adapter && adapter.disconnect) adapter.disconnect();
           adapter = null;
           if (activePort) {
+            activePort.postMessage({ action: "SESSION_RESET" });
             activePort.postMessage({
               action: "EXTENSION_READY",
               meta: { adapter: "none", status: "idle" }
@@ -678,6 +848,11 @@
           }
         });
       }
+      var isStartupPhase = false;
+      var startupRetries = 0;
+      var MAX_STARTUP_RETRIES = 10;
+      var loadingWaitCount = 0;
+      var MAX_LOADING_WAIT = 60;
       function startSession() {
         if (!adapter) return;
         console.log("[Keimenon] Starting observation session.");
@@ -692,16 +867,44 @@
             }
           });
         }
-        extractAndSend();
-        let retries = 0;
-        const warmUp = setInterval(() => {
-          retries++;
-          extractAndSend();
-          if (retries >= 3) clearInterval(warmUp);
-        }, 500);
+        isStartupPhase = true;
+        startupRetries = 0;
+        loadingWaitCount = 0;
+        lastMessages = [];
+        attemptStartupExtraction();
         adapter.observe(() => {
-          extractAndSend();
+          extractAndSend(true);
         });
+      }
+      async function attemptStartupExtraction() {
+        if (!adapter || !activePort) return;
+        if (!isStartupPhase) return;
+        const messages = await adapter.runOnce();
+        if (messages.length > 0) {
+          console.log("[Keimenon] Startup success: found messages.");
+          isStartupPhase = false;
+          sendMessagesParams(messages);
+        } else {
+          const isLoading = adapter.isLoading ? adapter.isLoading() : false;
+          if (isLoading) {
+            if (loadingWaitCount < MAX_LOADING_WAIT) {
+              console.log(`[Keimenon] Platform loading... (${loadingWaitCount}/${MAX_LOADING_WAIT})`);
+              loadingWaitCount++;
+              setTimeout(attemptStartupExtraction, 500);
+              return;
+            }
+            console.warn("[Keimenon] Loading wait exceeded limit.");
+          }
+          if (startupRetries < MAX_STARTUP_RETRIES) {
+            console.log(`[Keimenon] Startup retry ${startupRetries + 1}/${MAX_STARTUP_RETRIES}... waiting 500ms`);
+            startupRetries++;
+            setTimeout(attemptStartupExtraction, 500);
+          } else {
+            console.log("[Keimenon] Startup exhausted. Sending empty state.");
+            isStartupPhase = false;
+            sendMessagesParams([]);
+          }
+        }
       }
       function cleanupSession() {
         console.log("[Keimenon] Cleaning up session.");
@@ -710,59 +913,68 @@
         }
         if (extractTimeout) clearTimeout(extractTimeout);
         isScanning = false;
+        isStartupPhase = false;
         stopScan();
       }
       var extractTimeout;
       var lastMessages = [];
-      async function extractAndSend() {
+      async function extractAndSend(fromObserver = false) {
         if (!adapter || !activePort) return;
         if (extractTimeout) clearTimeout(extractTimeout);
         extractTimeout = setTimeout(async () => {
           const messages = await adapter.runOnce();
-          if (activePort) {
-            try {
-              let isAppendOnly = false;
-              let delta = [];
-              if (messages.length > lastMessages.length && lastMessages.length > 0) {
-                const prefixLength = lastMessages.length;
-                const prefixMatch = lastMessages.every((m, i) => m.id === messages[i].id);
-                if (prefixMatch) {
-                  isAppendOnly = true;
-                  delta = messages.slice(prefixLength);
-                }
-              }
-              if (isAppendOnly && delta.length > 0) {
-                activePort.postMessage({
-                  action: "MESSAGES_APPEND",
-                  payload: { messages: delta },
-                  meta: {
-                    count: messages.length,
-                    adapter: adapter.name,
-                    capabilities: {
-                      scan: typeof adapter.scanFullChat === "function"
-                    }
-                  }
-                });
-              } else {
-                activePort.postMessage({
-                  action: "MESSAGES_UPDATED",
-                  payload: { messages },
-                  meta: {
-                    count: messages.length,
-                    adapter: adapter.name,
-                    capabilities: {
-                      scan: typeof adapter.scanFullChat === "function"
-                    }
-                  }
-                });
-              }
-              lastMessages = messages;
-            } catch (e) {
-              console.warn("[Keimenon] Failed to post message (disconnected?)");
-              cleanupSession();
+          if (messages.length > 0 && isStartupPhase) {
+            isStartupPhase = false;
+          }
+          if (isStartupPhase && messages.length === 0) {
+            return;
+          }
+          sendMessagesParams(messages);
+        }, 200);
+      }
+      function sendMessagesParams(messages) {
+        if (!activePort) return;
+        try {
+          let isAppendOnly = false;
+          let delta = [];
+          if (messages.length > lastMessages.length && lastMessages.length > 0) {
+            const prefixLength = lastMessages.length;
+            const prefixMatch = lastMessages.every((m, i) => m.id === messages[i].id);
+            if (prefixMatch) {
+              isAppendOnly = true;
+              delta = messages.slice(prefixLength);
             }
           }
-        }, 200);
+          if (isAppendOnly && delta.length > 0) {
+            activePort.postMessage({
+              action: "MESSAGES_APPEND",
+              payload: { messages: delta },
+              meta: {
+                count: messages.length,
+                adapter: adapter.name,
+                capabilities: {
+                  scan: typeof adapter.scanFullChat === "function"
+                }
+              }
+            });
+          } else {
+            activePort.postMessage({
+              action: "MESSAGES_UPDATED",
+              payload: { messages },
+              meta: {
+                count: messages.length,
+                adapter: adapter.name,
+                capabilities: {
+                  scan: typeof adapter.scanFullChat === "function"
+                }
+              }
+            });
+          }
+          lastMessages = messages;
+        } catch (e) {
+          console.warn("[Keimenon] Failed to post message (disconnected?)");
+          cleanupSession();
+        }
       }
       async function startScan() {
         if (!adapter || typeof adapter.scanFullChat !== "function") return;

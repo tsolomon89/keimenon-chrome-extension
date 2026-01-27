@@ -482,8 +482,15 @@ function handlePortMessage(msg) {
 
         // UX Fix: If 0 messages, apply a grace period (2s) because content script often sends
         // an initial empty state before the actual scan completes. This prevents "No Messages" flash.
+        // NOTE: With new Robust Loading in content.js, we shouldn't get empty updates unless it REALLY is empty.
         if (expectedMessageCount === 0) {
-            setTimeout(checkAndHideLoader, 2000);
+             messageListEl.innerHTML = `
+                <div class="empty-state" style="padding: 20px; text-align: center; color: var(--color-text-muted);">
+                    <p>No messages found.</p>
+                    <p style="font-size: 0.9em; margin-top: 8px;">Write a message or click the refresh button.</p>
+                </div>
+             `;
+             hideLoader();
         } else {
             checkAndHideLoader();
         }
@@ -504,11 +511,18 @@ function handlePortMessage(msg) {
         const { adapter, capabilities, status } = msg.meta;
 
         if (status === 'idle') {
-            // Adapted connected but on unsupported page (e.g. Home)
+             // Adapted connected but on unsupported page (e.g. Home)
              statusBadgeEl.textContent = 'Ready (Idle)';
              statusBadgeEl.style.backgroundColor = '';
              statusBadgeEl.style.color = '';
              messageListEl.innerHTML = '<div class="empty-state">Select a chat</div>';
+             
+             // Clear stats
+             appState.messages = [];
+             appState.hiddenIds.clear();
+             appState.selectedIds.clear();
+             updateUI();
+
              // But simpler: just treat as connected but maybe restricted capabilities
              updateConnectionState(true, adapter, { scan: false }); // Disable scan on home
              hideLoader();

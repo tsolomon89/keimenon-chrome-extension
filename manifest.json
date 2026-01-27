@@ -1,11 +1,10 @@
 {
     "manifest_version":  3,
     "name":  "Keimenon Lite",
-    "version":  "1.4.0",
+    "version":  "1.4.14",
     "description":  "Extract and export specific messages or full conversations from AI chat pages locally. Privacy-first.",
     "permissions":  [
                         "sidePanel",
-                        "storage",
                         "activeTab"
                     ],
     "background":  {
@@ -33,23 +32,7 @@
                                 "run_at":  "document_idle"
                             }
                         ],
-    "web_accessible_resources":  [
-                                     {
-                                         "resources":  [
-                                                           "src/ui/sidepanel.html",
-                                                           "src/ui/sidepanel.js",
-                                                           "src/style.css"
-                                                       ],
-                                         "matches":  [
-                                                         "*://chatgpt.com/*",
-                                                         "*://claude.ai/*",
-                                                         "*://chat.openai.com/*",
-                                                         "*://gemini.google.com/*",
-                                                         "*://x.com/*",
-                                                         "*://grok.com/*"
-                                                     ]
-                                     }
-                                 ],
+
     "icons":  {
                   "16":  "assets/favicon/keimenon-favicon-16.png",
                   "48":  "assets/favicon/keimenon-favicon-48.png",
