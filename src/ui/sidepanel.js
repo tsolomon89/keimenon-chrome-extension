@@ -8,6 +8,7 @@ const appState = {
     filter: {
         search: '',
         minLen: 0,
+        maxLen: 0,
         sort: 'original',
         author: 'both' // 'user', 'assistant', 'both'
     }
@@ -45,6 +46,7 @@ const filterOverlay = document.getElementById('filterOverlay');
 const closeFilterBtn = document.getElementById('closeFilterBtn');
 const clearFilterBtn = document.getElementById('clearFilterBtn');
 const minLenInput = document.getElementById('minLenInput');
+const maxLenInput = document.getElementById('maxLenInput');
 
 // Menu
 const menuBtn = document.getElementById('menuBtn');
@@ -106,17 +108,14 @@ document.getElementById('sendEmailBtn')?.addEventListener('click', () => {
     const subjectSelect = document.getElementById('contactSubject');
     const subjectVal = subjectSelect ? subjectSelect.value : 'General Support';
     
-    // Format: keimenon_lite [Subject]
-    const finalSubject = `keimenon_lite ${subjectVal}`;
-    const mailto = `mailto:tlcsolomon@gmail.com?subject=${encodeURIComponent(finalSubject)}`;
+    // Build Gmail compose URL directly to support@keimenon.com
+    const finalSubject = `Keimenon Lite - ${subjectVal}`;
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=support%40keimenon.com&su=${encodeURIComponent(finalSubject)}`;
     
-    // Extensions sometimes block external protocols from inactive tabs.
-    // Making the tab active ensures the browser prompts the user to open the mail client.
     if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.create) {
-         chrome.tabs.create({ url: mailto, active: true });
+        chrome.tabs.create({ url: gmailUrl, active: true });
     } else {
-        // Fallback for non-extension context (dev preview)
-        window.open(mailto, '_blank');
+        window.open(gmailUrl, '_blank');
     }
     
     closeSheet();
@@ -171,11 +170,13 @@ async function loadPrivacyContent() {
 clearFilterBtn.addEventListener('click', () => {
     appState.filter.search = '';
     appState.filter.minLen = 0;
+    appState.filter.maxLen = 0;
     appState.filter.sort = 'original';
     
     // Reset Inputs
     searchInput.value = '';
-    minLenInput.value = 0;
+    minLenInput.value = '';
+    if (maxLenInput) maxLenInput.value = '';
     // reset sort state to 'original'
     appState.filter.sort = 'original';
     updateSortUI(); // Update icon helper
@@ -454,8 +455,9 @@ function handlePortMessage(msg) {
         setLoading(false);
 
         // Wait for DOM to fully render all messages before hiding loader
-        // Wait for DOM to fully render all messages before hiding loader
-        const expectedMessageCount = messages.length;
+        // Use filtered count since updateUI() only renders filtered messages
+        const filteredMessages = getFilteredMessages();
+        const expectedMessageCount = filteredMessages.length;
         const checkAndHideLoader = () => {
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
@@ -507,26 +509,32 @@ function handlePortMessage(msg) {
         // Loader will be hidden when MESSAGES_UPDATED arrives
 
     } else if (msg.action === 'EXTENSION_READY') {
-        setLoading(false);
         const { adapter, capabilities, status } = msg.meta;
 
+        // Active Load started - Clear previous session data immediately
+        appState.messages = [];
+        appState.hiddenIds.clear();
+        appState.selectedIds.clear();
+        messageListEl.innerHTML = '';
+        
+        // Ensure Page Loader is visible for the new session
+        showLoader();
+
         if (status === 'idle') {
+             setLoading(false);
              // Adapted connected but on unsupported page (e.g. Home)
              statusBadgeEl.textContent = 'Ready (Idle)';
              statusBadgeEl.style.backgroundColor = '';
              statusBadgeEl.style.color = '';
              messageListEl.innerHTML = '<div class="empty-state">Select a chat</div>';
              
-             // Clear stats
-             appState.messages = [];
-             appState.hiddenIds.clear();
-             appState.selectedIds.clear();
              updateUI();
 
              // But simpler: just treat as connected but maybe restricted capabilities
              updateConnectionState(true, adapter, { scan: false }); // Disable scan on home
              hideLoader();
         } else {
+            // Active Session
             updateConnectionState(true, adapter, capabilities);
             requestMessages();
             // Loader will be hidden when MESSAGES_UPDATED arrives
@@ -617,9 +625,15 @@ copyAllBtn.addEventListener('click', () => {
     
     if (selectedMsgs.length === 0) return;
 
-    const textToCopy = selectedMsgs.map(m => m.text).join('\n\n---\n\n');
-    
-    navigator.clipboard.writeText(textToCopy);
+    const textToCopy = selectedMsgs.map(m => {
+        const isUser = m.author === 'user';
+        // Determine AI name from platform; capitalise for display
+        const platformName = m.platform
+            ? m.platform.charAt(0).toUpperCase() + m.platform.slice(1)
+            : 'AI';
+        const label = isUser ? '**User**' : `**AI - ${platformName}**`;
+        return `${label}\n${m.text}`;
+    }).join('\n\n---\n\n');
     
     navigator.clipboard.writeText(textToCopy);
     
@@ -659,16 +673,17 @@ function updateCopyButtonLabel() {
 searchInput.addEventListener('input', (e) => { appState.filter.search = e.target.value; updateUI(); });
 
 minLenInput.addEventListener('input', (e) => { 
-    // Enforce numbers (positive integers)
     let val = parseInt(e.target.value);
     if (isNaN(val) || val < 0) val = 0;
-    
-    // Update State
     appState.filter.minLen = val;
-    
-    // Optional: Update input value if it was invalid characters (though type="number" blocks most)
-    // e.target.value = val; 
-    
+    updateUI(); 
+});
+
+maxLenInput?.addEventListener('input', (e) => { 
+    let val = parseInt(e.target.value);
+    if (isNaN(val) || val < 0) val = 0;
+    appState.filter.maxLen = val;
+    // maxLen = 0 means no limit (disabled)
     updateUI(); 
 });
 
@@ -683,7 +698,7 @@ function getFilteredMessages() {
     }
     
     // 1. Basic Filters
-    let msgs = filterMessages(activeSet, appState.filter.search, appState.filter.minLen);
+    let msgs = filterMessages(activeSet, appState.filter.search, appState.filter.minLen, appState.filter.maxLen);
     
     // 3. Author Filter
     const authorMode = appState.filter.author;
@@ -723,7 +738,7 @@ function updateUI() {
     const searchTerm = appState.filter.search.trim();
 
     // Filter Active State & Clear Button Visibility
-    const hasActiveFilters = appState.filter.minLen > 0 || appState.filter.search.length > 0 || appState.filter.sort !== 'original';
+    const hasActiveFilters = appState.filter.minLen > 0 || appState.filter.maxLen > 0 || appState.filter.search.length > 0 || appState.filter.sort !== 'original';
     
     if (hasActiveFilters) {
         filterBtn.classList.add('active');

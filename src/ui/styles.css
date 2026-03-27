@@ -712,10 +712,29 @@ body {
     cursor: pointer;
 }
 
+/* 
+ * Native <option> elements only support SOLID opaque colors on Windows.
+ * Gradients and RGBA backgrounds are stripped by the OS. Each theme 
+ * provides --bg-dropdown-option and --color-dropdown-option as solid fallbacks.
+ */
 .select-input option {
-    background-color: var(--bg-surface);
-    color: var(--color-text);
+    background-color: var(--bg-dropdown-option, #1a1a2e);
+    color: var(--color-dropdown-option, #ffffff);
 }
+
+/* Per-theme dropdown option solid fallbacks */
+[data-theme="solid-dark"]    { --bg-dropdown-option: #1a1a2e; --color-dropdown-option: #ffffff; }
+[data-theme="solid-light"]   { --bg-dropdown-option: #f1f5f9; --color-dropdown-option: #1f2937; }
+[data-theme="glass-dark"]    { --bg-dropdown-option: #0f0f1a; --color-dropdown-option: #ffffff; }
+[data-theme="glass-light"]   { --bg-dropdown-option: #f0f4ff; --color-dropdown-option: #1f2937; }
+[data-theme="neu-dark"]      { --bg-dropdown-option: #2d2d3a; --color-dropdown-option: #e0e0e0; }
+[data-theme="neu-light"]     { --bg-dropdown-option: #e0e5ec; --color-dropdown-option: #333333; }
+[data-theme="neon-dark"]     { --bg-dropdown-option: #0a0a0f; --color-dropdown-option: #00ffff; }
+[data-theme="neon-light"]    { --bg-dropdown-option: #fdf4ff; --color-dropdown-option: #7e22ce; }
+[data-theme="retro-dark"]    { --bg-dropdown-option: #1a1c2c; --color-dropdown-option: #f4d35e; }
+[data-theme="retro-light"]   { --bg-dropdown-option: #e8dcc8; --color-dropdown-option: #5d4e37; }
+[data-theme="outline-dark"]  { --bg-dropdown-option: #121212; --color-dropdown-option: #ffffff; }
+[data-theme="outline-light"] { --bg-dropdown-option: #fafafa; --color-dropdown-option: #1f2937; }
 
 /* Controls Row */
 .controls-row {

@@ -168,12 +168,53 @@
           throw new Error("runOnce must be implemented by subclass");
         }
         /**
-         * Checks if the platform is currently in a loading state (e.g. initial hydration).
-         * Used to prevent premature "No messages" timeouts.
-         * @returns {boolean}
+         * Checks if the current page is an active chat interface.
+         * Used to differentiate "Home Screen" from "Chat Screen".
+         * @abstract
+         * @returns {Promise<boolean>|boolean}
          */
-        isLoading() {
-          return false;
+        isChatPage() {
+          return true;
+        }
+        /**
+         * Waits for the chat interface to be fully loaded (e.g. input box visible).
+         * @returns {Promise<boolean>}
+         */
+        async waitForReady() {
+          return true;
+        }
+        /**
+         * Waits for a specific condition or selector to be present.
+         * @param {string|Function} selectorOrFn - CSS selector or predicate function
+         * @param {number} timeout - ms
+         * @returns {Promise<boolean>}
+         */
+        async waitForContent(selectorOrFn, timeout = 5e3) {
+          return new Promise((resolve) => {
+            const check = () => {
+              if (typeof selectorOrFn === "string") {
+                if (this.context.querySelector(selectorOrFn)) return true;
+              } else {
+                if (selectorOrFn()) return true;
+              }
+              return false;
+            };
+            if (check()) return resolve(true);
+            const observer = new MutationObserver(() => {
+              if (check()) {
+                observer.disconnect();
+                resolve(true);
+              }
+            });
+            observer.observe(this.context.body || this.context.documentElement, {
+              childList: true,
+              subtree: true
+            });
+            setTimeout(() => {
+              observer.disconnect();
+              resolve(false);
+            }, timeout);
+          });
         }
         /**
          * Shared helper to resolve message hash from cache or generate new one.
@@ -447,11 +488,6 @@
         constructor(context = document) {
           super("chatgpt", context);
         }
-        isLoading() {
-          const resultStreaming = this.context.querySelector(".result-streaming");
-          if (resultStreaming) return true;
-          return false;
-        }
         isSupportedLocation(url) {
           if (!url.includes("chatgpt.com") && !url.includes("chat.openai.com")) {
             return false;
@@ -469,6 +505,14 @@
         getConversationId(url) {
           const match = url.match(/\/c\/([a-f0-9-]+)/);
           return match ? match[1] : null;
+        }
+        isChatPage() {
+          return true;
+        }
+        async waitForReady() {
+          return this.waitForContent(() => {
+            return !!(this.context.getElementById("prompt-textarea") || this.context.querySelector("[data-message-author-role]") || this.context.querySelector('[data-testid^="conversation-turn-"]') || this.context.querySelector("form textarea"));
+          }, 1e4);
         }
         async runOnce() {
           const messages = [];
@@ -525,16 +569,18 @@
         constructor(context = document) {
           super("claude", context);
         }
-        isLoading() {
-          const loading = this.context.querySelector('[data-testid="loading-indicator"], .loading-spinner');
-          return !!loading;
-        }
         isSupportedLocation(url) {
           return url.includes("claude.ai/chat/");
         }
         getConversationId(url) {
           const match = url.match(/\/chat\/([a-f0-9-]+)/);
           return match ? match[1] : null;
+        }
+        isChatPage() {
+          return true;
+        }
+        async waitForReady() {
+          return this.waitForContent('div[contenteditable="true"]');
         }
         async runOnce() {
           const messages = [];
@@ -592,17 +638,21 @@
         constructor(context = document) {
           super("grok", context);
         }
-        isLoading() {
-          const loading = this.context.querySelector('[aria-label="Loading"], .spinner');
-          return !!loading;
-        }
         isSupportedLocation(url) {
-          return url.includes("grok.com/c/") || url.includes("x.com/i/grok");
+          return url.includes("grok.com") || url.includes("x.com/i/grok");
         }
         getConversationId(url) {
-          const match = url.match(/\/chat\/([a-zA-Z0-9-]+)/);
-          if (match) return match[1];
+          const chatMatch = url.match(/\/c\/([a-zA-Z0-9-]+)/);
+          if (chatMatch) return chatMatch[1];
+          const projectChatMatch = url.match(/[?&]chat=([a-zA-Z0-9-]+)/);
+          if (projectChatMatch) return projectChatMatch[1];
           return "current-session";
+        }
+        isChatPage() {
+          return true;
+        }
+        async waitForReady() {
+          return this.waitForContent("textarea");
         }
         async runOnce() {
           const messages = [];
@@ -650,17 +700,21 @@
         constructor(context = document) {
           super("gemini", context);
         }
-        isLoading() {
-          const skeletons = this.context.querySelectorAll(".mat-mdc-progress-bar, .loading-skeleton, .shimmer");
-          if (skeletons.length > 0) return true;
-          return false;
-        }
         isSupportedLocation(url) {
           return url.includes("gemini.google.com/app/");
         }
         getConversationId(url) {
           const match = url.match(/\/app\/([a-zA-Z0-9-]+)/);
           return match ? match[1] : "current-session";
+        }
+        isChatPage() {
+          if (this.context.location.href.endsWith("/app") || this.context.location.href.endsWith("/app/")) {
+            return false;
+          }
+          return true;
+        }
+        async waitForReady() {
+          return this.waitForContent('.rich-textarea, [role="textbox"]');
         }
         async runOnce() {
           const messages = [];
@@ -782,13 +836,13 @@
         if (adapter && newAdapter && adapter.name === newAdapter.name) {
           if (adapter.isSupportedLocation(currentUrl)) {
             console.log("[Keimenon] SPA Navigation within same platform.");
+            lastMessages = [];
             if (adapter.disconnect) adapter.disconnect();
             if (activePort) startSession();
           } else {
             console.log("[Keimenon] Navigated to unsupported area of same platform.");
             if (adapter.disconnect) adapter.disconnect();
             if (activePort) {
-              activePort.postMessage({ action: "SESSION_RESET" });
               activePort.postMessage({
                 action: "EXTENSION_READY",
                 meta: { adapter: adapter.name, status: "idle" }
@@ -798,9 +852,7 @@
         } else if (newAdapter) {
           console.log(`[Keimenon] Platform switched to ${newAdapter.name}`);
           if (adapter && adapter.disconnect) adapter.disconnect();
-          if (activePort) {
-            activePort.postMessage({ action: "SESSION_RESET" });
-          }
+          lastMessages = [];
           adapter = newAdapter;
           if (activePort) startSession();
         } else {
@@ -808,7 +860,6 @@
           if (adapter && adapter.disconnect) adapter.disconnect();
           adapter = null;
           if (activePort) {
-            activePort.postMessage({ action: "SESSION_RESET" });
             activePort.postMessage({
               action: "EXTENSION_READY",
               meta: { adapter: "none", status: "idle" }
@@ -850,9 +901,7 @@
       }
       var isStartupPhase = false;
       var startupRetries = 0;
-      var MAX_STARTUP_RETRIES = 10;
-      var loadingWaitCount = 0;
-      var MAX_LOADING_WAIT = 60;
+      var MAX_STARTUP_RETRIES = 30;
       function startSession() {
         if (!adapter) return;
         console.log("[Keimenon] Starting observation session.");
@@ -869,8 +918,6 @@
         }
         isStartupPhase = true;
         startupRetries = 0;
-        loadingWaitCount = 0;
-        lastMessages = [];
         attemptStartupExtraction();
         adapter.observe(() => {
           extractAndSend(true);
@@ -879,30 +926,35 @@
       async function attemptStartupExtraction() {
         if (!adapter || !activePort) return;
         if (!isStartupPhase) return;
+        const isChat = await Promise.resolve(adapter.isChatPage());
+        if (!isChat) {
+          console.log("[Keimenon] Not a chat page (Home/Other). Sending IDLE.");
+          isStartupPhase = false;
+          activePort.postMessage({
+            action: "EXTENSION_READY",
+            meta: { adapter: adapter.name, status: "idle" }
+          });
+          return;
+        }
+        const isReady = await adapter.waitForReady();
+        if (!isReady) {
+          console.log("[Keimenon] Timed out waiting for chat interface ready state.");
+        }
         const messages = await adapter.runOnce();
         if (messages.length > 0) {
           console.log("[Keimenon] Startup success: found messages.");
           isStartupPhase = false;
           sendMessagesParams(messages);
         } else {
-          const isLoading = adapter.isLoading ? adapter.isLoading() : false;
-          if (isLoading) {
-            if (loadingWaitCount < MAX_LOADING_WAIT) {
-              console.log(`[Keimenon] Platform loading... (${loadingWaitCount}/${MAX_LOADING_WAIT})`);
-              loadingWaitCount++;
-              setTimeout(attemptStartupExtraction, 500);
-              return;
-            }
-            console.warn("[Keimenon] Loading wait exceeded limit.");
-          }
-          if (startupRetries < MAX_STARTUP_RETRIES) {
-            console.log(`[Keimenon] Startup retry ${startupRetries + 1}/${MAX_STARTUP_RETRIES}... waiting 500ms`);
-            startupRetries++;
-            setTimeout(attemptStartupExtraction, 500);
-          } else {
-            console.log("[Keimenon] Startup exhausted. Sending empty state.");
+          if (startupRetries >= MAX_STARTUP_RETRIES) {
+            console.log("[Keimenon] Startup exhausted (Time limit). Sending empty state.");
             isStartupPhase = false;
             sendMessagesParams([]);
+          } else {
+            const waitTime = 500;
+            console.log(`[Keimenon] Startup retry ${startupRetries + 1}/${MAX_STARTUP_RETRIES} (Messages: 0)... waiting ${waitTime}ms`);
+            startupRetries++;
+            setTimeout(attemptStartupExtraction, waitTime);
           }
         }
       }

@@ -10,13 +10,27 @@ export class GrokAdapter extends BaseAdapter {
   }
 
   isSupportedLocation(url) {
-    return url.includes('grok.com/c/') || url.includes('x.com/i/grok'); 
+    return url.includes('grok.com') || url.includes('x.com/i/grok'); 
   }
 
   getConversationId(url) {
-      const match = url.match(/\/chat\/([a-zA-Z0-9-]+)/);
-      if (match) return match[1];
+      // Regular chat: /c/{id}
+      const chatMatch = url.match(/\/c\/([a-zA-Z0-9-]+)/);
+      if (chatMatch) return chatMatch[1];
+      // Project chat: /project/{projectId}?chat={chatId}
+      const projectChatMatch = url.match(/[?&]chat=([a-zA-Z0-9-]+)/);
+      if (projectChatMatch) return projectChatMatch[1];
       return 'current-session';
+  }
+
+  isChatPage() {
+      // Grok URL logic might need adjustment if home is same as chat base
+      return true;
+  }
+
+  async waitForReady() {
+    // Grok: textarea
+    return this.waitForContent('textarea');
   }
 
   async runOnce() {
