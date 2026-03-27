@@ -637,9 +637,13 @@ copyAllBtn.addEventListener('click', () => {
     
     if (selectedMsgs.length === 0) return;
 
+    const hasUser = selectedMsgs.some(m => m.author === 'user');
+    const hasAI   = selectedMsgs.some(m => m.author === 'assistant');
+    const mixedAuthors = hasUser && hasAI;
+
     const textToCopy = selectedMsgs.map(m => {
+        if (!mixedAuthors) return m.text; // single-author export — no labels
         const isUser = m.author === 'user';
-        // Determine AI name from platform; capitalise for display
         const platformName = m.platform
             ? m.platform.charAt(0).toUpperCase() + m.platform.slice(1)
             : 'AI';
