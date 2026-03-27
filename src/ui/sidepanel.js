@@ -107,10 +107,16 @@ document.getElementById('closeContactBtn')?.addEventListener('click', closeSheet
 document.getElementById('sendEmailBtn')?.addEventListener('click', () => {
     const subjectSelect = document.getElementById('contactSubject');
     const subjectVal = subjectSelect ? subjectSelect.value : 'General Support';
-    
-    // Build Gmail compose URL directly to support@keimenon.com
+
+    // Route each subject to its dedicated inbox
+    const EMAIL_MAP = {
+        'Bug / Error Report': 'error@keimenon.com',
+        'Feature Requests':   'requests@keimenon.com',
+        'General Support':    'support@keimenon.com',
+    };
+    const toEmail = EMAIL_MAP[subjectVal] || 'support@keimenon.com';
     const finalSubject = `Keimenon Lite - ${subjectVal}`;
-    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=support%40keimenon.com&su=${encodeURIComponent(finalSubject)}`;
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(toEmail)}&su=${encodeURIComponent(finalSubject)}`;
     
     if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.create) {
         chrome.tabs.create({ url: gmailUrl, active: true });
