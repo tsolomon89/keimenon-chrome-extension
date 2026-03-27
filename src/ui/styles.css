@@ -1742,3 +1742,22 @@ mark {
   }
 }
 
+/* ==================== CUSTOM SCROLLBARS (WINDOWS POLISH) ==================== */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 4px;
+    opacity: 0.5;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--color-text-muted);
+}
+::-webkit-scrollbar-corner {
+    background: transparent;
+}

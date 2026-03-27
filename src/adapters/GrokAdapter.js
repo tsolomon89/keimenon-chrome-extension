@@ -1,5 +1,6 @@
 import { BaseAdapter } from './BaseAdapter.js';
 import { normalizeText } from '../shared/dom.js';
+import { extractMessageContent } from '../shared/extraction.js';
 
 /**
  * @implements {import('../shared/types').PlatformAdapter}
@@ -10,7 +11,7 @@ export class GrokAdapter extends BaseAdapter {
   }
 
   isSupportedLocation(url) {
-    return url.includes('grok.com') || url.includes('x.com/i/grok'); 
+    return url.includes('grok.com');
   }
 
   getConversationId(url) {
@@ -47,9 +48,9 @@ export class GrokAdapter extends BaseAdapter {
         let text = '';
         
         if (markdownContainer) {
-            text = normalizeText(markdownContainer.innerText);
+            text = normalizeText(extractMessageContent(markdownContainer));
         } else {
-            text = normalizeText(node.innerText);
+            text = normalizeText(extractMessageContent(node));
         }
 
         if (!text) continue;

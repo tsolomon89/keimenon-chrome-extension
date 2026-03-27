@@ -43,6 +43,23 @@ export class ChatGPTAdapter extends BaseAdapter {
     return match ? match[1] : null;
   }
 
+  isChatPage() {
+    return true;
+  }
+
+  async waitForReady() {
+    // ChatGPT: Check for input area OR existing messages.
+    // We use a function to check multiple conditions.
+    return this.waitForContent(() => {
+        return !!(
+            this.context.getElementById('prompt-textarea') || 
+            this.context.querySelector('[data-message-author-role]') || 
+            this.context.querySelector('[data-testid^="conversation-turn-"]') ||
+            this.context.querySelector('form textarea')
+        );
+    }, 10000); // 10s wait for ChatGPT
+  }
+
   async runOnce() {
     const messages = [];
     const conversationId = this.context.location ? this.getConversationId(this.context.location.href) : 'mock-conversation';

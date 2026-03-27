@@ -20,6 +20,21 @@ export class GeminiAdapter extends BaseAdapter {
     return match ? match[1] : 'current-session';
   }
 
+  isChatPage() {
+    // Exclude the main /app/ landing page which has no conversation ID in URL usually,
+    // or specifically check for the prompt area or welcome message to distinguish.
+    // Better: Helper method to check if URL has an ID or if DOM has chat elements.
+    if (this.context.location.href.endsWith('/app') || this.context.location.href.endsWith('/app/')) {
+        return false;
+    }
+    return true;
+  }
+
+  async waitForReady() {
+    // Gemini: rich-textarea
+    return this.waitForContent('.rich-textarea, [role="textbox"]');
+  }
+
   async runOnce() {
     const messages = [];
     const conversationId = this.getConversationId(window.location.href);

@@ -40,6 +40,64 @@ export class BaseAdapter {
     }
 
     /**
+     * Checks if the current page is an active chat interface.
+     * Used to differentiate "Home Screen" from "Chat Screen".
+     * @abstract
+     * @returns {Promise<boolean>|boolean}
+     */
+    isChatPage() {
+        return true; 
+    }
+
+    /**
+     * Waits for the chat interface to be fully loaded (e.g. input box visible).
+     * @returns {Promise<boolean>}
+     */
+    async waitForReady() {
+        // Default implementation: just wait for body (not useful)
+        // Subclasses should override with specific selectors
+        return true;
+    }
+
+    /**
+     * Waits for a specific condition or selector to be present.
+     * @param {string|Function} selectorOrFn - CSS selector or predicate function
+     * @param {number} timeout - ms
+     * @returns {Promise<boolean>}
+     */
+    async waitForContent(selectorOrFn, timeout = 5000) {
+        return new Promise((resolve) => {
+            const check = () => {
+                if (typeof selectorOrFn === 'string') {
+                    if (this.context.querySelector(selectorOrFn)) return true;
+                } else {
+                    if (selectorOrFn()) return true;
+                }
+                return false;
+            };
+
+            if (check()) return resolve(true);
+
+            const observer = new MutationObserver(() => {
+                if (check()) {
+                    observer.disconnect();
+                    resolve(true);
+                }
+            });
+
+            observer.observe(this.context.body || this.context.documentElement, {
+                childList: true,
+                subtree: true
+            });
+
+            setTimeout(() => {
+                observer.disconnect();
+                resolve(false);
+            }, timeout);
+        });
+    }
+
+    /**
      * Shared helper to resolve message hash from cache or generate new one.
      * @param {Element} node 
      * @param {string} text 

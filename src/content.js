@@ -59,6 +59,10 @@ function handleNavigation() {
     if (adapter && newAdapter && adapter.name === newAdapter.name) {
         if (adapter.isSupportedLocation(currentUrl)) {
              console.log('[Keimenon] SPA Navigation within same platform.');
+             
+             // CLEAR STATE to prevent mixing chats
+             lastMessages = [];
+
              // Disconnect old observer
              if (adapter.disconnect) adapter.disconnect();
              // Re-start session (finds new elements)
@@ -78,6 +82,10 @@ function handleNavigation() {
     else if (newAdapter) {
         console.log(`[Keimenon] Platform switched to ${newAdapter.name}`);
         if (adapter && adapter.disconnect) adapter.disconnect();
+        
+        // CLEAR STATE
+        lastMessages = [];
+        
         adapter = newAdapter;
         if (activePort) startSession();
     }
@@ -138,7 +146,7 @@ function handleNewConnection(port) {
 
 let isStartupPhase = false;
 let startupRetries = 0;
-const MAX_STARTUP_RETRIES = 10; // Increased to 10 (approx 5s coverage) based on user feedback
+const MAX_STARTUP_RETRIES = 30; // Increased to 30 (approx 15s coverage) to handle slow loads
 
 function startSession() {
     if (!adapter) return;
@@ -176,6 +184,29 @@ async function attemptStartupExtraction() {
     if (!adapter || !activePort) return;
     if (!isStartupPhase) return;
 
+    // 1. Check if it is a chat page (vs Home)
+    // This is primarily a URL/Routing check to decide intent
+    const isChat = await Promise.resolve(adapter.isChatPage());
+    if (!isChat) {
+         console.log('[Keimenon] Not a chat page (Home/Other). Sending IDLE.');
+         isStartupPhase = false;
+         activePort.postMessage({ 
+             action: 'EXTENSION_READY', 
+             meta: { adapter: adapter.name, status: 'idle' } 
+         });
+         return;
+    }
+
+    // 2. Wait for content to be ready (DOM check)
+    // This ensures inputs/messages are actually loaded before scanning
+    const isReady = await adapter.waitForReady();
+    if (!isReady) {
+         console.log('[Keimenon] Timed out waiting for chat interface ready state.');
+         // We don't send idle here, we might just send empty or let the next block handle it
+         // But usually if waitForReady fails (10s), we probably should stop.
+    }
+
+    // 3. Try to find messages
     const messages = await adapter.runOnce();
 
     if (messages.length > 0) {
@@ -185,15 +216,21 @@ async function attemptStartupExtraction() {
         sendMessagesParams(messages); // Helper to send
     } else {
         // No messages yet
-        if (startupRetries < MAX_STARTUP_RETRIES) {
-             console.log(`[Keimenon] Startup retry ${startupRetries + 1}/${MAX_STARTUP_RETRIES}... waiting 500ms`);
-             startupRetries++;
-             setTimeout(attemptStartupExtraction, 500);
-        } else {
-             // Gave up
-             console.log('[Keimenon] Startup exhausted. Sending empty state.');
+        
+        // CRITICAL FIX: Even if verifyReady() verified the input box, 
+        // the messages might still be hydrating (common in ChatGPT).
+        // Do NOT give up immediately. Fall back to the retry loop.
+        
+        if (startupRetries >= MAX_STARTUP_RETRIES) {
+             console.log('[Keimenon] Startup exhausted (Time limit). Sending empty state.');
              isStartupPhase = false;
-             sendMessagesParams([]); // Send empty
+             sendMessagesParams([]); // Truly empty
+        } else {
+             // Continue waiting
+             const waitTime = 500;
+             console.log(`[Keimenon] Startup retry ${startupRetries + 1}/${MAX_STARTUP_RETRIES} (Messages: 0)... waiting ${waitTime}ms`);
+             startupRetries++;
+             setTimeout(attemptStartupExtraction, waitTime);
         }
     }
 }

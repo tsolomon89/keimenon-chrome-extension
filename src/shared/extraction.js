@@ -75,13 +75,22 @@ export function extractMessageContent(root, options = {}) {
 
             // 2. Special Leaf Handlers
             
-            // KaTeX
-            if (node.classList.contains('katex')) {
-                const annotation = node.querySelector('annotation[encoding="application/x-tex"]');
+            // KaTeX & MathML Universal Handler
+            if (node.classList && node.classList.contains('katex-html')) {
+                // NEVER traverse the visual Katex HTML tree. It results in horrible duplicate text soup.
+                // We rely entirely on the `<math>` or `annotation` tag below.
+                return;
+            }
+
+            if (tagName === 'math' || (node.classList && node.classList.contains('katex'))) {
+                const annotation = node.querySelector('annotation');
                 if (annotation) {
-                    const isDisplay = node.classList.contains('katex-display') || 
-                                      (node.parentNode && node.parentNode.classList.contains('katex-display'));
-                    const tex = annotation.textContent;
+                    const isDisplay = node.getAttribute('display') === 'block' || 
+                                      (node.classList && node.classList.contains('katex-display')) ||
+                                      (node.parentNode && node.parentNode.classList && node.parentNode.classList.contains('katex-display')) ||
+                                      (node.parentNode && node.parentNode.classList && node.parentNode.classList.contains('math-display'));
+                    
+                    const tex = annotation.textContent.trim();
                     if (isDisplay) {
                         ensureNewline(2);
                         append('$$' + tex + '$$');

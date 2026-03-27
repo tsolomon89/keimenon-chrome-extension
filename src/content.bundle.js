@@ -332,11 +332,14 @@
           if (node.matches && node.matches(selector)) return;
         }
         const tagName = node.tagName.toLowerCase();
-        if (node.classList.contains("katex")) {
-          const annotation = node.querySelector('annotation[encoding="application/x-tex"]');
+        if (node.classList && node.classList.contains("katex-html")) {
+          return;
+        }
+        if (tagName === "math" || node.classList && node.classList.contains("katex")) {
+          const annotation = node.querySelector("annotation");
           if (annotation) {
-            const isDisplay = node.classList.contains("katex-display") || node.parentNode && node.parentNode.classList.contains("katex-display");
-            const tex = annotation.textContent;
+            const isDisplay = node.getAttribute("display") === "block" || node.classList && node.classList.contains("katex-display") || node.parentNode && node.parentNode.classList && node.parentNode.classList.contains("katex-display") || node.parentNode && node.parentNode.classList && node.parentNode.classList.contains("math-display");
+            const tex = annotation.textContent.trim();
             if (isDisplay) {
               ensureNewline(2);
               append("$$" + tex + "$$");
@@ -634,12 +637,13 @@
       "use strict";
       init_BaseAdapter();
       init_dom();
+      init_extraction();
       GrokAdapter = class extends BaseAdapter {
         constructor(context = document) {
           super("grok", context);
         }
         isSupportedLocation(url) {
-          return url.includes("grok.com") || url.includes("x.com/i/grok");
+          return url.includes("grok.com");
         }
         getConversationId(url) {
           const chatMatch = url.match(/\/c\/([a-zA-Z0-9-]+)/);
@@ -663,9 +667,9 @@
             const markdownContainer = node.querySelector(".response-content-markdown");
             let text = "";
             if (markdownContainer) {
-              text = normalizeText(markdownContainer.innerText);
+              text = normalizeText(extractMessageContent(markdownContainer));
             } else {
-              text = normalizeText(node.innerText);
+              text = normalizeText(extractMessageContent(node));
             }
             if (!text) continue;
             const hash = await this.getMessageHash(node, text);
@@ -783,7 +787,7 @@
           if (url.includes("claude.ai")) {
             return new ClaudeAdapter();
           }
-          if (url.includes("x.com/i/grok") || url.includes("grok.com")) {
+          if (url.includes("grok.com")) {
             return new GrokAdapter();
           }
           if (url.includes("gemini.google.com")) {

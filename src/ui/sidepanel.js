@@ -335,10 +335,19 @@ if (platformItems) {
 
 // --- Chrome API Initialization ---
 
-// --- Chrome API Initialization ---
-
 let activePort = null;
 let currentTabId = null;
+
+// Debounce handle — collapses rapid tab-switch events into one reconnect
+let _connectDebounceTimer = null;
+
+function scheduleConnect(delayMs = 0) {
+    if (_connectDebounceTimer) clearTimeout(_connectDebounceTimer);
+    _connectDebounceTimer = setTimeout(() => {
+        _connectDebounceTimer = null;
+        connectToActiveTab();
+    }, delayMs);
+}
 
 function initExtension() {
     if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.tabs) {
@@ -349,20 +358,20 @@ function initExtension() {
     // Initial Connection
     connectToActiveTab();
 
-    // Re-connect on tab switch
+    // Re-connect on tab switch (debounced to avoid double-fire with onUpdated)
     chrome.tabs.onActivated.addListener(() => {
-        connectToActiveTab();
+        scheduleConnect(50);
     });
 
-    // Re-connect on URL change (navigation)
+    // Re-connect on navigation (debounced to avoid double-fire with onActivated)
     chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         if (changeInfo.status === 'complete' && tabId === currentTabId) {
-            connectToActiveTab();
+            scheduleConnect(300);
         }
     });
 }
 
-function connectToActiveTab() {
+function connectToActiveTab(retryCount = 0) {
     // Cleanup old connection
     if (activePort) {
         try { activePort.disconnect(); } catch(e) {}
@@ -374,20 +383,23 @@ function connectToActiveTab() {
     appState.hiddenIds.clear();
     appState.selectedIds.clear();
 
-    // IMPORTANT: Reset the render-signature cache so updateUI() always does a
-    // full re-render after a tab switch, even if the new chat has the same
-    // message IDs as the previous one. Without this, the list stays blank
-    // while stats (which run before the signature check) show the correct count.
+    // Reset highly specific contextual filters (Search text bleeding across tabs hides all messages)
+    appState.filter.search = '';
+    if (searchInput) searchInput.value = '';
+
+    // Reset the render-signature cache so updateUI() always does a full
+    // re-render after a tab switch, even if the new chat has the same IDs.
     updateUI.lastSignature = null;
 
     // Clear UI - leave empty while loading
     messageListEl.innerHTML = '';
 
-    // Reset UI State while connecting
-    updateConnectionState(false);
+    // Go straight to "Connecting" — never flash "Unsupported Tab" during a transition.
+    // updateConnectionState(false) is only called when retries are truly exhausted.
     statusBadgeEl.textContent = 'Connecting...';
     statusBadgeEl.style.backgroundColor = '';
     statusBadgeEl.style.color = '';
+    currentAdapterName = '';
 
     // Show loader
     showLoader();
@@ -411,13 +423,22 @@ function connectToActiveTab() {
             
             // Listen for Disconnect
             port.onDisconnect.addListener(() => {
-                const err = chrome.runtime.lastError;
-                console.log('[SidePanel] Port disconnected', err);
+                const err = chrome.runtime.lastError; // must be read to suppress console error
+                console.log('[SidePanel] Port disconnected', err?.message);
                 activePort = null;
-                updateConnectionState(false);
-                hideLoader();
-                // Usually means content script doesn't exist (e.g. system page)
-                // or page closed. We stand by for next tab event.
+
+                // If disconnect happened immediately (content script not ready yet),
+                // retry a few times before giving up. This covers the window where
+                // onActivated fires before the new tab's content script has initialised.
+                const MAX_RETRIES = 3;
+                if (retryCount < MAX_RETRIES) {
+                    console.log(`[SidePanel] Retrying connection (attempt ${retryCount + 1}/${MAX_RETRIES})...`);
+                    setTimeout(() => connectToActiveTab(retryCount + 1), 600);
+                } else {
+                    console.log('[SidePanel] No content script found after retries — tab may be unsupported.');
+                    updateConnectionState(false);
+                    hideLoader();
+                }
             });
 
             // Listen for Messages

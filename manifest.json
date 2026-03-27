@@ -1,7 +1,7 @@
 {
     "manifest_version":  3,
     "name":  "Keimenon Lite",
-    "version":  "1.4.24",
+    "version":  "1.4.28",
     "description":  "Extract and export specific messages or full conversations from AI chat pages locally. Privacy-first.",
     "permissions":  [
                         "sidePanel",
@@ -23,7 +23,6 @@
                                                 "https://claude.ai/*",
                                                 "https://chat.openai.com/*",
                                                 "https://gemini.google.com/*",
-                                                "https://x.com/*",
                                                 "https://grok.com/*"
                                             ],
                                 "js":  [

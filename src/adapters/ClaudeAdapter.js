@@ -20,6 +20,15 @@ export class ClaudeAdapter extends BaseAdapter {
     return match ? match[1] : null;
   }
 
+  isChatPage() {
+    return true;
+  }
+
+  async waitForReady() {
+      // Claude: ContentEditable div
+      return this.waitForContent('div[contenteditable="true"]');
+  }
+
   async runOnce() {
     const messages = [];
     const conversationId = this.getConversationId(window.location.href) || 'unknown';

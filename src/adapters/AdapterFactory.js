@@ -11,7 +11,7 @@ export class AdapterFactory {
     if (url.includes('claude.ai')) {
       return new ClaudeAdapter();
     }
-    if (url.includes('x.com/i/grok') || url.includes('grok.com')) {
+    if (url.includes('grok.com')) {
       return new GrokAdapter();
     }
     if (url.includes('gemini.google.com')) {

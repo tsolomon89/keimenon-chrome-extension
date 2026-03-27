@@ -31,7 +31,6 @@ We request the minimum set of permissions necessary to function:
 | :--- | :--- |
 | `sidePanel` | Required to display the user interface alongside your chat window. |
 | `scripting` / `activeTab` | Required to inject the content script that reads the DOM of the *current* tab to extract user messages. |
-| `storage` | Used strictly for **UI Preferences** (e.g., saving your "Dark Mode" setting or "Last Sort Order"). **Never** used for chat content. |
 
 ## 4. Third-Party Services
 

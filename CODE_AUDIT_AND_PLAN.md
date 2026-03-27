@@ -1,104 +1,64 @@
-# Keimenon Lite: Code Audit & Solution Plan
+# Code Audit & Verification Report
 
 **Date:** 2026-01-27
-**Scope:** Review of `src/` (Adapters, Content Script, UI) for reliability, consistency, and architecture improvements.
+**Target:** Keimenon Lite Extension Codebase (`src/`)
+
+## 1. Executive Summary
+This document verifies the accuracy of the proposed "Review & Solution Plan" against the actual codebase. It confirms that the runtime architecture and workflow descriptions are accurate to the current implementation. It also highlights specific code locations where improvements are needed to address reported reliability issues.
+
+**Status:** `VERIFIED` - The previous analysis matches the code reality.
 
 ---
 
-## 1. Workflow & Capability Scope
+## 2. Current Implementation Verification
 
-| Feature | Current Implementation Status | Reliability / Risk |
-| :--- | :--- | :--- |
-| **Platform Detection** | Implemented in `AdapterFactory.js` (URL regex). | **High**: Regex is robust for main domains. |
-| **Chat Loading** | `content.js` retries `runOnce()` for ~5s (`MAX_STARTUP_RETRIES=10`). | **Low**: 5s is often too short for heavy chats, causing "No messages" empty state. |
-| **Capture Logic** | `extraction.js` (Manual DOM walk). | **High**: Very robust, handles MathJax/Markdown well. |
-| **SPA Navigation** | Polling (1s) + MutationObserver on `body` in `content.js`. | **Medium**: Poller is safe, but race conditions exist where adapter inits before DOM is ready. |
-| **UI State** | SidePanel mimics connection state (Connecting -> Ready -> Loading). | **Medium**: Loader hides prematurely if partial messages arrive. |
+### A. Workflow & Platform Detection
+*   **File:** `src/content.js`, `src/adapters/AdapterFactory.js`
+*   **Verification:**
+    *   `content.js` initializes `AdapterFactory` on load.
+    *   **SPA Handling:** Use of `setInterval` (1s polling) and `MutationObserver` on `document.body` (lines 26-45 of `content.js`) is correctly implemented to detect URL changes.
+    *   **Logic:** `handleNavigation()` (line 47) differentiates between same-platform navigation (re-scan) and cross-platform switching (new adapter).
 
----
+### B. Adapter Architecture
+*   **File:** `src/adapters/BaseAdapter.js`, `src/adapters/*Adapter.js`
+*   **Verification:**
+    *   **Base Class:** `BaseAdapter` handles the `MutationObserver` setup (`observe` method) using `createDebouncedObserver` (line 80).
+    *   **Extraction:** Specific adapters (`ChatGPTAdapter`, `GeminiAdapter`) implement `runOnce()` which returns an array of messages.
+    *   **State:** Adapters maintain a `nodeCache` (WeakMap) in `BaseAdapter` to prevent re-hashing unchanged nodes, which is a good performance optimization.
 
-## 2. Runtime Architecture Map
-
-**Core Flow:**
-1.  **Init**: `content.js` loads -> `AdapterFactory` picks strategy.
-2.  **Connect**: `chrome.runtime.onConnect` -> `sidepanel-connection` established.
-3.  **Detect**:
-    *   `setInterval` checks `window.location.href`.
-    *   If changed: `handleNavigation()` runs -> swaps Adapter -> `startSession()`.
-4.  **Extract**:
-    *   `startSession()` -> `attemptStartupExtraction()` loops (500ms intervals).
-    *   Simultaneously, `adapter.observe()` triggers `extractAndSend()` on DOM mutations.
-5.  **Render**: `sidepanel.js` receives `MESSAGES_UPDATED` -> Updates `appState` -> Renders DOM.
+### C. UI & Loader State
+*   **File:** `src/ui/sidepanel.js`
+*   **Verification:**
+    *   **Connection:** `connectToActiveTab` correctly establishes the port and listens for `onDisconnect`.
+    *   **Loader Hiding:** The specific logic to hide the loader is in `handlePortMessage` -> `MESSAGES_UPDATED` (lines 456-481). It waits for the DOM element count to match the message count.
+    *   **Empty State:** There is a graceful fallback for 0 messages (lines 486-496) to prevent flashing.
 
 ---
 
-## 3. Adapter Audit
+## 3. Identified Gaps & Opportunities (Code-Level)
 
-### General
-*   **Gap**: No explicit `disconnect()` in `BaseAdapter` that cleans up internal observers (only `content.js` cleans up the `scanController`). Most adapters rely on `content.js` to just stop calling them, but `MutationObserver` on `body` (used in `ChatGPTAdapter` implicit observation) might leak if not disconnected.
-*   **Gap**: No `isLoading()` method. Adapters return `[]` for both "Empty Chat" and "Loading", confusing the startup logic.
+The following areas are confirmed as "Current Logic" vs "Desired Behavior" gaps based on the code audit:
 
-### Specifics
+### 1. Robustness of Startup Loop
+*   **Current Code:** `content.js` (lines 139-199) uses a hardcoded 10-retry loop (`MAX_STARTUP_RETRIES = 10` * 500ms = 5 seconds) in `attemptStartupExtraction`.
+*   **Issue:** If a chat takes 6 seconds to load (common with large history or slow networks), the extension gives up and sends an empty state.
+*   **Improvement Opportunity:** Replace fixed retries with a `waitForSelector` pattern in the Adapter interface to wait until the chat container actually exists before counting down a timeout.
 
-| Adapter | Selectors | Robustness | Notes |
-| :--- | :--- | :--- | :--- |
-| **ChatGPT** | `[data-message-author-role]` | **High** | Uses semantic data attributes. Fallbacks exist. |
-| **Gemini** | `structured-content-container`, classes | **Medium** | Relies on custom element names and test IDs (`data-test-id`). Effective but prone to class changes. |
-| **Claude** | `data-test-id`, `.font-user-message` | **High** | Robust data-attributes. uses `extractMessageContent` with `.font-ui` exclusion. |
-| **Grok** | `.message-bubble` | **Low** | Relies on generic class `.message-bubble` and CSS color class `bg-surface-l1` for author detection. High risk of breaking. |
+### 2. State Contamination on SPA Navigation
+*   **Current Code:** `content.js` defines `let lastMessages = []` at the top level (line 213).
+*   **Issue:** inside `handleNavigation()`, while `isStartupPhase` is reset, `lastMessages` is **not** cleared.
+*   **Effect:** If a user navigates from "Chat A" to "Chat B" on the same platform, the `sendMessagesParams` function might incorrectly calculate a "diff" against Chat A's messages, potentially resulting in zero messages being sent or weird "append" behavior if IDs happen to collide.
+*   **Improvement Opportunity:** Explicitly set `lastMessages = []` inside `handleNavigation`.
 
----
+### 3. Selector Specificity
+*   **Current Code:** `GeminiAdapter.js` (lines 30-38) uses a mix of specific tags (`structured-content-container`) and generic classes (`.model-response-text`).
+*   **Issue:** It does not explicitly exclude "shimmer" or "loading" placeholders, relying on `extractMessageContent` to return empty string for those.
+*   **Improvement Opportunity:** Add explicit `:not(.loading)` pseudo-classes or check for specific content readiness attributes.
 
-## 4. Risk Analysis (Root Causes)
+### 4. Adapter "Ready" Checks
+*   **Current Code:** Adapters implement `isSupportedLocation(url)` but lack an `isReady()` or `hasLoaded()` method.
+*   **Issue:** `content.js` assumes if `runOnce()` returns empty array, it's "loading". But it could be "empty chat".
+*   **Improvement Opportunity:** Implement `isChatInterface()` on adapters to distinguish between a "Home Screen" (never has messages) and a "Chat Screen" (should eventually have messages).
 
-### A. The "5-Second Timeout" (Reliability)
-**Location:** `content.js:141` (`MAX_STARTUP_RETRIES = 10`)
-**Issue:** Large chats or slow connections often take >5s to render.
-**Effect:** `attemptStartupExtraction` exhausts retries -> sends `[]` -> SidePanel shows "No messages found".
-**Fix:** Introduce `adapter.waitForChat()` or `adapter.isLoading()` to extend retries while the "Scanning / Thinking" UI is present.
-
-### B. SPA Navigation State Contamination (Data Integrity)
-**Location:** `content.js:30` (Polling) & `lastMessages` variable.
-**Issue:** When switching chats (SPA), `handleNavigation` restarts session but does not explicitly clear `lastMessages` global in `content.js`.
-**Effect:** If the new chat message IDs overlap (unlikely with UUIDs but possible with index-based IDs) or if logic flaws exist, `sendMessagesParams` might try to calculate a "delta" against the *previous* chat's messages.
-**Fix:** Explicitly set `lastMessages = []` in `handleNavigation`.
-
-### C. Loader "Flicker" (UI Polish)
-**Location:** `sidepanel.js:459` (`checkAndHideLoader`)
-**Issue:** Logic hides loader as soon as `domCount >= expectedMessageCount`.
-**Effect:** If the adapter finds 2 messages initially (startup), loader hides. Then 50 more load in. User sees 2 msgs -> jump -> 52 msgs.
-**Fix:** Keep loader "soft" active (e.g., small progress bar) if adapter indicates `isLoading`.
-
----
-
-## 5. Proposed Solution Plan
-
-### Phase 1: Stability (High Priority)
-1.  **Fix Timeout**:
-    *   Modify `attemptStartupExtraction` in `content.js`.
-    *   If `adapter.hasLoadingIndicator()` is true, do not count against `startupRetries`.
-    *   Implies adding `hasLoadingIndicator()` to `BaseAdapter`.
-2.  **Fix Navigation Reset**:
-    *   In `content.js`, add `lastMessages = []` inside `handleNavigation()`.
-    *   Send `{ action: 'SESSION_RESET' }` to SidePanel to clear UI immediately on nav start.
-
-### Phase 2: Adapter Hardening
-1.  **Grok Improvement**:
-    *   Investigate better attributes for Grok than `bg-surface-l1`.
-2.  **Base Cleanup**:
-    *   Add `disconnect()` to `BaseAdapter` and ensure all Observers are killed on adapter switch.
-
-### Phase 3: UI Feedback
-1.  **Empty State**:
-    *   Distinguish between "Connected (Home Page)" vs "Connected (Chat Empty)" vs "Connected (Loading)".
-    *   `content.js` currently sends `adapter: 'none'` for home. This is good.
-    *   Need a specific `status: 'loading'` meta capability.
-
----
-
-## 6. Verification Checklist
-
-- [ ] Verify `content.js` handles rapid switching between multiple ChatGPT tabs without error.
-- [ ] Verify Gemini "Thinking" state doesn't trigger "No messages found".
-- [ ] Verify Grok messages are captured even if color themes change (testing `bg-surface-l1`).
-- [ ] Confirm no data is retained in `lastMessages` after navigating to `about:blank` or another site.
+## 4. Conclusion
+The codebase is structured cleanly with a clear separation of concerns (Adapter Pattern). The "Flakiness" reported is directly traceable to the **Startup Retry Logic** and **State Reset** omissions identified above. The Architecture map in the solution plan is accurate.
