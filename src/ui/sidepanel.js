@@ -374,6 +374,12 @@ function connectToActiveTab() {
     appState.hiddenIds.clear();
     appState.selectedIds.clear();
 
+    // IMPORTANT: Reset the render-signature cache so updateUI() always does a
+    // full re-render after a tab switch, even if the new chat has the same
+    // message IDs as the previous one. Without this, the list stays blank
+    // while stats (which run before the signature check) show the correct count.
+    updateUI.lastSignature = null;
+
     // Clear UI - leave empty while loading
     messageListEl.innerHTML = '';
 
